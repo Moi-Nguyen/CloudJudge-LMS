@@ -1,0 +1,105 @@
+# Cloud Build Configuration for CI/CD
+# Builds and deploys to Cloud Run automatically on push to main branch
+
+steps:
+  # Build frontend
+  - name: 'node:20-alpine'
+    entrypoint: npm
+    args: ['ci']
+    dir: 'frontend'
+
+  - name: 'node:20-alpine'
+    entrypoint: npm
+    args: ['run', 'build']
+    dir: 'frontend'
+
+  # Build backend
+  - name: 'python:3.11-slim'
+    entrypoint: 'pip'
+    args: ['install', '-r', 'backend/requirements.txt', '--user']
+    dir: 'backend'
+
+  # Build Docker images
+  - name: 'gcr.io/cloud-build/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/cloudjudge-backend:$COMMIT_SHA'
+      - '-f'
+      - 'docker/Dockerfile.backend'
+      - '.'
+
+  - name: 'gcr.io/cloud-build/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/cloudjudge-frontend:$COMMIT_SHA'
+      - '-f'
+      - 'docker/Dockerfile.frontend'
+      - '.'
+
+  # Push images
+  - name: 'gcr.io/cloud-build/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/cloudjudge-backend:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-build/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/cloudjudge-frontend:$COMMIT_SHA']
+
+  # Deploy to Cloud Run (Backend)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cloudjudge-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/cloudjudge-backend:$COMMIT_SHA'
+      - '--region'
+      - 'asia-southeast1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--port'
+      - '8080'
+      - '--set-env-vars'
+      - 'DATABASE_URL=${_DATABASE_URL}'
+      - '--set-env-vars'
+      - 'SECRET_KEY=${_SECRET_KEY}'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production'
+
+  # Deploy to Cloud Run (Frontend)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'cloudjudge-frontend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/cloudjudge-frontend:$COMMIT_SHA'
+      - '--region'
+      - 'asia-southeast1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '256Mi'
+      - '--cpu'
+      - '1'
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/cloudjudge-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/cloudjudge-frontend:$COMMIT_SHA'
+
+# Timeout
+timeout: '1200s'
+
+# Substitution variables (set in Cloud Build triggers)
+substitutions:
+  _DATABASE_URL: 'mysql+aiomysql://user:password@/db?host=/cloudsql/project:region:instance'
+  _SECRET_KEY: 'your-secret-key'
