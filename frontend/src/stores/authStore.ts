@@ -82,22 +82,14 @@ export const useAuthStore = create<AuthState>()(
       initializeAuth: async () => {
         const { accessToken, refreshToken, isMockAuth } = get()
         const mockMode = isMockMode()
-        console.log('[authStore] initializeAuth start:', {
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken,
-          isMockAuth,
-          isMockMode: mockMode,
-        })
 
         // MOCK MODE: ALWAYS skip backend, no matter what tokens exist
         if (mockMode) {
-          console.log('[authStore] initializeAuth: mock mode ACTIVE - skipping backend completely')
 
           // If we have mock tokens AND user, restore session
           if (isMockAuth && accessToken && refreshToken) {
             const mockUser = get().user
             if (mockUser) {
-              console.log('[authStore] initializeAuth: restoring existing mock session')
               set({ isAuthenticated: true, isLoading: false })
               return
             }
@@ -105,26 +97,21 @@ export const useAuthStore = create<AuthState>()(
 
           // If we have tokens but not mock auth (e.g., switched from real to mock),
           // or no tokens at all - just stop loading, don't call backend
-          console.log('[authStore] initializeAuth: mock mode - stopping loading without backend call')
           set({ isMockAuth: true, isLoading: false })
           return
         }
 
         // REAL MODE: No tokens stored, just stop loading
         if (!accessToken || !refreshToken) {
-          console.log('[authStore] initializeAuth: no tokens, stopping loading')
           set({ isLoading: false })
           return
         }
 
         // REAL MODE: Try to validate token by calling /auth/me
-        console.log('[authStore] initializeAuth: real mode - calling backend /auth/me')
         try {
           const user = await authApi.getMe()
-          console.log('[authStore] initializeAuth: backend validation success')
           set({ user, isAuthenticated: true, isLoading: false })
         } catch (error) {
-          console.log('[authStore] initializeAuth: backend validation failed', error)
           // Token invalid or backend down - clear auth state
           set({
             user: null,
@@ -138,11 +125,9 @@ export const useAuthStore = create<AuthState>()(
 
       // Mock login handler
       mockLogin: async (email, password) => {
-        console.log('[authStore] mockLogin called with:', email)
         const validatedUser = validateMockCredentials(email, password)
 
         if (!validatedUser) {
-          console.log('[authStore] mockLogin: invalid credentials')
           return { success: false, error: 'Email hoặc mật khẩu không đúng' }
         }
 
@@ -156,7 +141,6 @@ export const useAuthStore = create<AuthState>()(
         }
 
         const tokens = createMockTokens(roleKey as UserRole, validatedUser.id)
-        console.log('[authStore] mockLogin: success for role', roleKey)
 
         // Store in Zustand
         set({
