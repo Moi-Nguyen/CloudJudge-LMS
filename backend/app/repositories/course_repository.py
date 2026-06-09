@@ -35,7 +35,7 @@ class CourseRepository(BaseRepository[Course]):
         include_unpublished: bool = True
     ) -> list[Course]:
         """Get courses by instructor."""
-        query = select(Course).where(Course.instructor_id == instructor_id)
+        query = select(Course).where(Course.instructor_id == str(instructor_id))
 
         if not include_unpublished:
             query = query.where(Course.is_published == True)
@@ -53,7 +53,7 @@ class CourseRepository(BaseRepository[Course]):
         """Get course with all relationships loaded."""
         result = await self.db.execute(
             select(Course)
-            .where(Course.id == course_id)
+            .where(Course.id == str(course_id))
             .options(
                 selectinload(Course.instructor),
                 selectinload(Course.lessons),
@@ -116,8 +116,8 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
             select(Enrollment)
             .where(
                 and_(
-                    Enrollment.user_id == user_id,
-                    Enrollment.course_id == course_id,
+                    Enrollment.user_id == str(user_id),
+                    Enrollment.course_id == str(course_id),
                 )
             )
         )
@@ -131,7 +131,7 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
         limit: int = 20
     ) -> list[Enrollment]:
         """Get all enrollments for a user."""
-        query = select(Enrollment).where(Enrollment.user_id == user_id)
+        query = select(Enrollment).where(Enrollment.user_id == str(user_id))
 
         if status:
             query = query.where(Enrollment.status == status)
@@ -154,7 +154,7 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
         """Get all enrollments for a course."""
         result = await self.db.execute(
             select(Enrollment)
-            .where(Enrollment.course_id == course_id)
+            .where(Enrollment.course_id == str(course_id))
             .options(selectinload(Enrollment.user))
             .order_by(Enrollment.enrolled_at.desc())
             .offset(skip)
@@ -169,8 +169,8 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
             .select_from(Enrollment)
             .where(
                 and_(
-                    Enrollment.user_id == user_id,
-                    Enrollment.course_id == course_id,
+                    Enrollment.user_id == str(user_id),
+                    Enrollment.course_id == str(course_id),
                     Enrollment.status == "active",
                 )
             )
@@ -184,7 +184,7 @@ class EnrollmentRepository(BaseRepository[Enrollment]):
             .select_from(Enrollment)
             .where(
                 and_(
-                    Enrollment.course_id == course_id,
+                    Enrollment.course_id == str(course_id),
                     Enrollment.status == "active",
                 )
             )

@@ -20,7 +20,7 @@ class BaseRepository(Generic[ModelType]):
     async def get_by_id(self, id: UUID) -> Optional[ModelType]:
         """Get a single record by ID."""
         result = await self.db.execute(
-            select(self.model).where(self.model.id == id)
+            select(self.model).where(self.model.id == str(id))
         )
         return result.scalar_one_or_none()
 
@@ -59,7 +59,7 @@ class BaseRepository(Generic[ModelType]):
     async def exists(self, id: UUID) -> bool:
         """Check if a record exists."""
         result = await self.db.execute(
-            select(func.count()).select_from(self.model).where(self.model.id == id)
+            select(func.count()).select_from(self.model).where(self.model.id == str(id))
         )
         return result.scalar_one() > 0
 

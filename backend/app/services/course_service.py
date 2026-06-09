@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Course, Enrollment
 from ..schemas.course import CourseCreate, CourseUpdate
 from ..repositories import CourseRepository, EnrollmentRepository, UserRepository
-from ...errors import (
+from ..errors import (
     CourseNotFoundError,
     NotCourseOwnerError,
     AlreadyEnrolledError,
@@ -35,7 +35,7 @@ class CourseService:
             title=data.title,
             description=data.description,
             thumbnail_url=data.thumbnail_url,
-            instructor_id=instructor_id,
+            instructor_id=str(instructor_id),
         )
         return await self.course_repo.create(course)
 
@@ -89,7 +89,7 @@ class CourseService:
         if not course:
             raise CourseNotFoundError()
 
-        if course.instructor_id != user_id:
+        if str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         update_data = data.model_dump(exclude_unset=True)
@@ -104,7 +104,7 @@ class CourseService:
         if not course:
             raise CourseNotFoundError()
 
-        if course.instructor_id != user_id:
+        if str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         # Soft delete
@@ -123,8 +123,8 @@ class CourseService:
             raise CourseNotFoundError()
 
         enrollment = Enrollment(
-            user_id=user_id,
-            course_id=course_id,
+            user_id=str(user_id),
+            course_id=str(course_id),
             status="active",
         )
         return await self.enrollment_repo.create(enrollment)

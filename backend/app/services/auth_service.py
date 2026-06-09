@@ -13,7 +13,7 @@ from ..models import User
 from ..models.user import UserRole
 from ..schemas.user import UserCreate, UserUpdate, UserResponse
 from ..repositories import UserRepository
-from ...errors import (
+from ..errors import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
     UserNotFoundError,
@@ -42,7 +42,7 @@ class AuthService:
             email=user_data.email,
             password_hash=get_password_hash(user_data.password),
             full_name=user_data.full_name,
-            role=user_data.role,
+            role=UserRole.STUDENT,
         )
         user = await self.user_repo.create(user)
 

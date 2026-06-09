@@ -41,7 +41,7 @@ async def list_users(
     is_active: Optional[bool] = None,
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
 ):
     """List all users (admin only)."""
     user_service = UserService(db)
@@ -67,6 +67,27 @@ async def get_my_profile(
     """Get current user's profile."""
     return UserResponse.model_validate(current_user)
 
+
+@router.post("/change-password", response_model=MessageResponse)
+async def change_password(
+    data: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Change current user's password."""
+    user_service = UserService(db)
+    try:
+        await user_service.change_password(
+            current_user.id,
+            data.current_password,
+            data.new_password,
+        )
+        return MessageResponse(message="Password changed successfully")
+    except InvalidCredentialsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
@@ -159,23 +180,3 @@ async def delete_user(
         )
 
 
-@router.post("/change-password", response_model=MessageResponse)
-async def change_password(
-    data: ChangePasswordRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Change current user's password."""
-    user_service = UserService(db)
-    try:
-        await user_service.change_password(
-            current_user.id,
-            data.current_password,
-            data.new_password,
-        )
-        return MessageResponse(message="Password changed successfully")
-    except InvalidCredentialsError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )

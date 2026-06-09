@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import Lesson, Document, LessonType
 from ..schemas.lesson import LessonCreate, LessonUpdate, DocumentCreate
 from ..repositories import LessonRepository, DocumentRepository, CourseRepository
-from ...errors import (
+from ..errors import (
     LessonNotFoundError,
     CourseNotFoundError,
     NotCourseOwnerError,

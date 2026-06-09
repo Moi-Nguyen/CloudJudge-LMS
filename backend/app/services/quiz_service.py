@@ -20,7 +20,7 @@ from ..repositories import (
     LessonRepository,
     CourseRepository,
 )
-from ...errors import (
+from ..errors import (
     QuizNotFoundError,
     QuestionNotFoundError,
     AttemptNotFoundError,

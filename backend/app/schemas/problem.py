@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
-from .problem import SubmissionStatus
+from ..models.problem import SubmissionStatus
 
 
 class ProblemBase(BaseModel):

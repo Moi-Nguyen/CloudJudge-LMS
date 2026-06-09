@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.database import get_db
-from ...core.dependencies import get_current_user
-from ...core.config import settings
-from ...models import User
-from ...schemas.user import (
+from ....core.database import get_db
+from ....core.dependencies import get_current_user
+from ....core.config import settings
+from ....models import User
+from ....schemas.user import (
     UserCreate,
     UserResponse,
     LoginRequest,
@@ -13,8 +13,8 @@ from ...schemas.user import (
     RefreshTokenRequest,
     UserBrief,
 )
-from ...schemas.common import MessageResponse
-from ...services import AuthService, UserService
+from ....schemas.common import MessageResponse
+from ....services import AuthService, UserService
 from ....errors import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,

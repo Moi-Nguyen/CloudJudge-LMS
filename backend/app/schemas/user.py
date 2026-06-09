@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
-from .user import UserRole
+from ..models.user import UserRole
 
 
 # Base schemas

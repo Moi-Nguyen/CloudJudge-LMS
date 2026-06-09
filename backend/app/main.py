@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from .core.config import settings
-from .core.database import init_db, close_db
+from .core.database import init_db, close_db, engine
 from .api.v1.router import api_router
 from .schemas.common import HealthCheck
 
@@ -56,6 +57,28 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.get("/health", response_model=HealthCheck, tags=["Health"])
 async def health_check():
     """Health check endpoint."""
+    return HealthCheck(
+        status="healthy",
+        version=settings.APP_VERSION,
+        database="connected",
+    )
+
+@app.get("/ready", response_model=HealthCheck, tags=["Health"])
+async def readiness_check():
+    """Database readiness check endpoint."""
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "unhealthy",
+                "version": settings.APP_VERSION,
+                "database": "disconnected",
+            },
+        )
+
     return HealthCheck(
         status="healthy",
         version=settings.APP_VERSION,
