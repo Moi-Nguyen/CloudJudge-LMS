@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './stores/authStore'
+import { isMockMode } from './utils/mockAuth'
 
 // Layouts
 import DashboardLayout from './components/layout/DashboardLayout'
@@ -38,12 +39,35 @@ import LoadingSpinner from './components/common/LoadingSpinner'
 import ProtectedRoute from './components/common/ProtectedRoute'
 
 function App() {
-  const { isAuthenticated, isLoading, initializeAuth } = useAuthStore()
+  const { isLoading, initializeAuth } = useAuthStore()
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Initialize auth state from stored tokens
   useEffect(() => {
     initializeAuth()
   }, [initializeAuth])
+
+  // Prevent infinite loading - fallback after 5 seconds if backend unavailable
+  useEffect(() => {
+    if (isLoading) {
+      loadingTimeoutRef.current = setTimeout(() => {
+        const state = useAuthStore.getState()
+
+        // If using mock auth or mock mode is enabled and we have tokens, stop loading
+        if (state.isMockAuth || isMockMode()) {
+          if (state.accessToken && state.user) {
+            useAuthStore.getState().setLoading(false)
+          }
+        }
+      }, 5000)
+    }
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+      }
+    }
+  }, [isLoading])
 
   if (isLoading) {
     return (
@@ -99,11 +123,13 @@ function App() {
             <Route path="courses/:courseId" element={<CourseDetailPage />} />
 
             {/* Student Routes */}
+            <Route path="student" element={<Navigate to="/my-courses" replace />} />
             <Route path="my-courses" element={<MyCoursesPage />} />
             <Route path="quiz/:quizId" element={<QuizPage />} />
             <Route path="problem/:problemId" element={<ProgrammingPage />} />
 
             {/* Instructor Routes */}
+            <Route path="instructor" element={<Navigate to="/instructor/create-course" replace />} />
             <Route path="instructor/create-course" element={<CreateCoursePage />} />
             <Route path="instructor/edit-course/:courseId" element={<EditCoursePage />} />
             <Route path="instructor/lesson/:courseId/new" element={<CreateLessonPage />} />

@@ -26,7 +26,7 @@ export const MOCK_USERS = {
 }
 
 // Demo passwords
-export const MOCK_PASSWORDS = {
+export const MOCK_PASSWORDS: Record<string, string> = {
   'admin@cloudjudge.com': 'admin123',
   'instructor@cloudjudge.com': 'instructor123',
   'student@cloudjudge.com': 'student123',
@@ -54,26 +54,66 @@ export const createMockTokens = (role: UserRole, userId: string) => ({
 })
 
 // Validate mock credentials
-export const validateMockCredentials = (email: string, password: string) => {
-  if (MOCK_PASSWORDS[email] === password) {
-    const role = Object.keys(MOCK_USERS).find(
+export const validateMockCredentials = (email: string, password: string): UserBrief | null => {
+  const storedPassword = MOCK_PASSWORDS[email]
+  const isValid = storedPassword === password
+  console.log('[mockAuth] validateMockCredentials:', { email, isValid, storedPassword: storedPassword ? '***' : 'none' })
+
+  if (isValid) {
+    const roleKey = Object.keys(MOCK_USERS).find(
       key => MOCK_USERS[key as keyof typeof MOCK_USERS].email === email
     ) as keyof typeof MOCK_USERS | undefined
 
-    if (role) {
-      return MOCK_USERS[role]
+    if (roleKey) {
+      console.log('[mockAuth] validateMockCredentials: found user', roleKey)
+      return MOCK_USERS[roleKey]
     }
   }
+  console.log('[mockAuth] validateMockCredentials: invalid credentials')
   return null
 }
 
-// Check if running in mock mode (no backend)
-export const isMockMode = (): boolean => {
-  return import.meta.env.VITE_MOCK_AUTH === 'true' || 
-         localStorage.getItem('mock_auth_enabled') === 'true'
+// Check if VITE_MOCK_AUTH env is set to 'true'
+const isEnvMockMode = (): boolean => {
+  const result = import.meta.env.VITE_MOCK_AUTH === 'true'
+  console.log('[mockAuth] isEnvMockMode:', result, '| VITE_MOCK_AUTH =', JSON.stringify(import.meta.env.VITE_MOCK_AUTH))
+  return result
 }
 
-// Enable/disable mock mode
+// Check if mock mode is enabled via localStorage (runtime toggle)
+const isLocalStorageMockMode = (): boolean => {
+  const lsValue = localStorage.getItem('mock_auth_enabled')
+  const result = lsValue === 'true'
+  console.log('[mockAuth] isLocalStorageMockMode:', result, '| localStorage.mock_auth_enabled =', JSON.stringify(lsValue))
+  return result
+}
+
+// Check if running in mock mode (env takes precedence)
+export const isMockMode = (): boolean => {
+  const envResult = isEnvMockMode()
+  const lsResult = isLocalStorageMockMode()
+  const finalResult = envResult || lsResult
+  console.log('[mockAuth] isMockMode FINAL:', finalResult, '(env:', envResult, ', ls:', lsResult, ')')
+  return finalResult
+}
+
+// Enable/disable mock mode (only affects localStorage)
 export const setMockMode = (enabled: boolean): void => {
+  console.log('[mockAuth] setMockMode called with:', enabled)
+
+  // If env is set, localStorage doesn't matter
+  if (isEnvMockMode()) {
+    console.log('[mockAuth] setMockMode: SKIPPED because VITE_MOCK_AUTH env is set')
+    return
+  }
+
   localStorage.setItem('mock_auth_enabled', enabled ? 'true' : 'false')
+  console.log('[mockAuth] setMockMode: saved to localStorage =', enabled ? 'true' : 'false')
+}
+
+// Check if mock mode is locked by env (cannot be toggled at runtime)
+export const isMockModeLockedByEnv = (): boolean => {
+  const result = isEnvMockMode()
+  console.log('[mockAuth] isMockModeLockedByEnv:', result)
+  return result
 }

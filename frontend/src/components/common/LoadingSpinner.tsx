@@ -20,10 +20,13 @@ export default function LoadingSpinner({ size = 'md', className }: LoadingSpinne
 
 export function LoadingPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <LoadingSpinner size="lg" className="mx-auto mb-4" />
-        <p className="text-gray-600">Đang tải...</p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="card px-8 py-7 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
+          <LoadingSpinner size="lg" />
+        </div>
+        <p className="text-sm font-semibold text-slate-900">Loading workspace</p>
+        <p className="mt-1 text-sm text-slate-500">Please wait a moment...</p>
       </div>
     </div>
   )
