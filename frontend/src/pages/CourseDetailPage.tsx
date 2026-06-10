@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { BookOpen, Users, Play, FileText, Code, Edit, CheckCircle } from 'lucide-react'
+import { BookOpen, Users, Play, FileText, Code, Edit } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { coursesApi, lessonsApi } from '@/api/endpoints'
 import { useAuthStore } from '@/stores'
 import type { CourseDetail, Lesson } from '@/types'
-import { formatDate, cn } from '@/utils'
+import { cn } from '@/utils'
 import { LoadingSpinner } from '@/components/common'
 
 const lessonTypeIcons = {

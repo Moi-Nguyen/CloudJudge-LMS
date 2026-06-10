@@ -42,7 +42,6 @@ export default function RegisterPage() {
         full_name: data.full_name,
         email: data.email,
         password: data.password,
-        role: 'student',
       })
       const user = await authApi.getMe()
       login(response.access_token, response.refresh_token, user)

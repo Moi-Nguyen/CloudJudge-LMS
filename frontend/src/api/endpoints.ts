@@ -25,6 +25,18 @@ import type {
   StatsOverview,
 } from '@/types'
 
+type ListKey = 'items' | 'users' | 'courses' | 'enrollments' | 'lessons' | 'attempts' | 'submissions'
+
+type BackendListResponse<T> = Partial<Record<ListKey, T[]>> & Omit<ListResponse<T>, 'items'>
+
+const normalizeListResponse = <T>(data: BackendListResponse<T>, listKey: ListKey): ListResponse<T> => ({
+  items: data.items ?? data[listKey] ?? [],
+  total: data.total ?? 0,
+  page: data.page ?? 1,
+  page_size: data.page_size ?? 0,
+  total_pages: data.total_pages ?? 1,
+})
+
 // Auth API
 export const authApi = {
   login: async (data: LoginRequest): Promise<TokenResponse> => {
@@ -43,7 +55,7 @@ export const authApi = {
   },
 
   getMe: async (): Promise<UserBrief> => {
-    const response = await api.get('/auth/me')
+    const response = await api.get('/users/me')
     return response.data
   },
 
@@ -72,7 +84,7 @@ export const usersApi = {
     search?: string
   }): Promise<ListResponse<User>> => {
     const response = await api.get('/users', { params })
-    return response.data
+    return normalizeListResponse<User>(response.data, 'users')
   },
 
   updateUser: async (userId: string, data: Partial<User>): Promise<User> => {
@@ -98,7 +110,7 @@ export const coursesApi = {
     search?: string
   }): Promise<ListResponse<Course>> => {
     const response = await api.get('/courses', { params })
-    return response.data
+    return normalizeListResponse<Course>(response.data, 'courses')
   },
 
   getCourse: async (courseId: string): Promise<CourseDetail> => {
@@ -126,7 +138,7 @@ export const coursesApi = {
     status?: string
   }): Promise<ListResponse<EnrollmentWithCourse>> => {
     const response = await api.get('/courses/my', { params })
-    return response.data
+    return normalizeListResponse<EnrollmentWithCourse>(response.data, 'enrollments')
   },
 
   getMyCreatedCourses: async (params?: {
@@ -134,7 +146,7 @@ export const coursesApi = {
     page_size?: number
   }): Promise<ListResponse<Course>> => {
     const response = await api.get('/courses/my/created', { params })
-    return response.data
+    return normalizeListResponse<Course>(response.data, 'courses')
   },
 
   enrollInCourse: async (courseId: string): Promise<Enrollment> => {
@@ -159,7 +171,7 @@ export const lessonsApi = {
     page_size?: number
   }): Promise<ListResponse<Lesson>> => {
     const response = await api.get(`/lessons/course/${courseId}`, { params })
-    return response.data
+    return normalizeListResponse<Lesson>(response.data, 'lessons')
   },
 
   getLesson: async (lessonId: string): Promise<LessonDetail> => {
@@ -332,7 +344,7 @@ export const problemsApi = {
     problem_id?: string
   }): Promise<ListResponse<Submission>> => {
     const response = await api.get('/problems/submissions/my', { params })
-    return response.data
+    return normalizeListResponse<Submission>(response.data, 'submissions')
   },
 }
 

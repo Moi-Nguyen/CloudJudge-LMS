@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Clock, CheckCircle } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { coursesApi } from '@/api/endpoints'
 import type { EnrollmentWithCourse } from '@/types'
 import { formatDate, cn } from '@/utils'

@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { quizzesApi } from '@/api/endpoints'
-import { cn } from '@/utils'
 
 export default function CreateQuizPage() {
   const { lessonId } = useParams<{ lessonId: string }>()

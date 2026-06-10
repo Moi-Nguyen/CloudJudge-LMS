@@ -212,6 +212,7 @@ export interface Submission {
   total_points: number
   execution_time?: number
   memory_used?: number
+  error_message?: string
   submitted_at: string
   graded_at?: string
 }

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 import { quizzesApi } from '@/api/endpoints'
 import type { Quiz, QuizAttempt } from '@/types'
-import { cn, formatDateTime } from '@/utils'
+import { cn } from '@/utils'
 import { LoadingSpinner } from '@/components/common'
 
 export default function QuizPage() {

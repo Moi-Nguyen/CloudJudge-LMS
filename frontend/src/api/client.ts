@@ -2,7 +2,16 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'ax
 import { useAuthStore } from '@/stores/authStore'
 import { isMockMode } from '@/utils/mockAuth'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/+$/, '')
+
+const getRequestUrl = (config?: InternalAxiosRequestConfig): string => {
+  if (!config) return API_BASE_URL
+
+  const requestUrl = config.url || ''
+  if (/^https?:\/\//i.test(requestUrl)) return requestUrl
+
+  return `${config.baseURL || API_BASE_URL}${requestUrl.startsWith('/') ? '' : '/'}${requestUrl}`
+}
 
 const createMockModeError = (): AxiosError => {
   const error = new Error('Mock mode is enabled - backend requests are blocked')
@@ -21,7 +30,7 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (isMockMode()) {
-      console.warn('[apiClient] BLOCKED backend request in mock mode:', config.method?.toUpperCase(), config.url)
+      console.warn('[apiClient] BLOCKED backend request in mock mode:', config.method?.toUpperCase(), getRequestUrl(config))
       return Promise.reject(createMockModeError())
     }
 
@@ -45,6 +54,15 @@ api.interceptors.response.use(
     }
 
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+    console.error('[apiClient] Request failed:', {
+      method: originalRequest?.method?.toUpperCase(),
+      url: getRequestUrl(originalRequest),
+      status: error.response?.status,
+      code: error.code,
+      message: error.message,
+      detail: error.response?.data,
+    })
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true

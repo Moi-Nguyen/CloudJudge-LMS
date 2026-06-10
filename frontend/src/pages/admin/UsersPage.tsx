@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, UserPlus, Ban, CheckCircle, Trash2 } from 'lucide-react'
+import { Search, Ban, CheckCircle, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usersApi } from '@/api/endpoints'
 import type { User } from '@/types'

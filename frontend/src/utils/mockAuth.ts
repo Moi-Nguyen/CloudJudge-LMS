@@ -76,29 +76,13 @@ const isEnvMockMode = (): boolean => {
   return result
 }
 
-// Check if mock mode is enabled via localStorage (runtime toggle)
-const isLocalStorageMockMode = (): boolean => {
-  const lsValue = localStorage.getItem('mock_auth_enabled')
-  const result = lsValue === 'true'
-  return result
-}
-
-// Check if running in mock mode (env takes precedence)
+// Check if running in mock mode. Mock auth is disabled unless explicitly enabled by env.
 export const isMockMode = (): boolean => {
-  const envResult = isEnvMockMode()
-  const lsResult = isLocalStorageMockMode()
-  const finalResult = envResult || lsResult
-  return finalResult
+  return isEnvMockMode()
 }
 
-// Enable/disable mock mode (only affects localStorage)
+// Enable/disable mock mode (kept for compatibility; env controls normal development)
 export const setMockMode = (enabled: boolean): void => {
-
-  // If env is set, localStorage doesn't matter
-  if (isEnvMockMode()) {
-    return
-  }
-
   localStorage.setItem('mock_auth_enabled', enabled ? 'true' : 'false')
 }
 

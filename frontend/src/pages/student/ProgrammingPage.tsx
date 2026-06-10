@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Play, Send, CheckCircle, XCircle, Clock, MemoryStick } from 'lucide-react'
+import { Send, CheckCircle, XCircle, Clock, MemoryStick } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { problemsApi } from '@/api/endpoints'
 import type { Problem, Submission } from '@/types'

@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { Eye, EyeOff, Mail, Lock, Cloud, Code2, GraduationCap, ShieldCheck, TerminalSquare, Server } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores'
-import { isMockMode, setMockMode, isMockModeLockedByEnv } from '@/utils/mockAuth'
+import { isMockMode, isMockModeLockedByEnv } from '@/utils/mockAuth'
 import { getRedirectPathByRole } from '@/stores/authStore'
 import { cn } from '@/utils'
 
@@ -55,24 +55,27 @@ export default function LoginPage() {
           toast.error(result.error || 'Sign in failed')
         }
       } else {
-        const { login } = useAuthStore.getState()
+        const { login, setTokens, logout } = useAuthStore.getState()
         const { authApi } = await import('@/api/endpoints')
 
         try {
           const response = await authApi.login(data)
+          setTokens(response.access_token, response.refresh_token)
           const userData = await authApi.getMe()
           login(response.access_token, response.refresh_token, userData)
           toast.success('Signed in successfully!')
           handleLoginSuccess(userData)
         } catch (apiError: any) {
-          if (apiError.code === 'ERR_NETWORK' || apiError.message?.includes('Network')) {
-            toast.error('Cannot connect to server. Mock Mode is enabled for testing.')
-            setUseMockAuth(true)
-            setMockMode(true)
-          } else {
-            const message = apiError.response?.data?.detail || 'Sign in failed'
-            toast.error(message)
+          if (apiError.response?.status === 401) {
+            logout()
           }
+
+          const message = apiError.code === 'ERR_NETWORK' || apiError.message?.includes('Network')
+            ? 'Cannot connect to server. Check that the FastAPI backend is running.'
+            : apiError.response?.status === 401
+              ? 'Authentication failed. Please check your email and password.'
+              : apiError.response?.data?.detail || 'Sign in failed'
+          toast.error(message)
         }
       }
     } finally {
@@ -171,8 +174,8 @@ export default function LoginPage() {
 
               <div className="mt-6 border-t border-slate-100 pt-6">
                 <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 transition hover:bg-white">
-                  <input type="checkbox" checked={useMockAuth} disabled={mockModeLocked} onChange={(event) => { setUseMockAuth(event.target.checked); setMockMode(event.target.checked) }} className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50" />
-                  <span className="text-sm font-medium text-slate-700">Use Mock Mode without backend{mockModeLocked && ' (enabled by env)'}</span>
+                  <input type="checkbox" checked={useMockAuth} disabled onChange={() => undefined} className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50" />
+                  <span className="text-sm font-medium text-slate-700">Use Mock Mode without backend{mockModeLocked ? ' (enabled by env)' : ' (set VITE_MOCK_AUTH=true)'}</span>
                 </label>
                 {useMockAuth && (
                   <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
