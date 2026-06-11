@@ -134,6 +134,6 @@ class UserRepository(BaseRepository[User]):
         """Check if email already exists."""
         query = select(func.count()).select_from(User).where(User.email == email)
         if exclude_id:
-            query = query.where(User.id != exclude_id)
+            query = query.where(User.id != str(exclude_id))
         result = await self.db.execute(query)
         return result.scalar_one() > 0

@@ -83,13 +83,14 @@ class CourseService:
         course_id: UUID,
         user_id: UUID,
         data: CourseUpdate,
+        is_admin: bool = False,
     ) -> Course:
         """Update a course."""
         course = await self.course_repo.get_by_id(course_id)
         if not course:
             raise CourseNotFoundError()
 
-        if str(course.instructor_id) != str(user_id):
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         update_data = data.model_dump(exclude_unset=True)
@@ -98,7 +99,7 @@ class CourseService:
 
         return await self.course_repo.update(course)
 
-    async def delete(self, course_id: UUID, user_id: UUID) -> None:
+    async def delete(self, course_id: UUID, user_id: UUID, is_admin: bool = False) -> None:
         """Delete a course."""
         course = await self.course_repo.get_by_id(course_id)
         if not course:

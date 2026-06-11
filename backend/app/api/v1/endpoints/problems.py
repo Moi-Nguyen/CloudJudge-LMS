@@ -5,12 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.dependencies import get_current_user, get_current_instructor
-from ....models import User
+from ....models import User, UserRole
 from ....schemas.problem import (
     ProblemCreate,
     ProblemUpdate,
     ProblemResponse,
     ProblemDetailResponse,
+    ProblemListResponse,
     TestCaseCreate,
     TestCaseUpdate,
     TestCaseResponse,
@@ -33,6 +34,18 @@ from ....errors import (
 router = APIRouter(prefix="/problems", tags=["Programming Problems"])
 
 
+def _paginated_problem_response(items: list, total: int, page: int, page_size: int):
+    """Create paginated response for problems."""
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+    return {
+        "problems": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }
+
+
 # Problem endpoints
 @router.post("", response_model=ProblemResponse, status_code=status.HTTP_201_CREATED)
 async def create_problem(
@@ -43,8 +56,44 @@ async def create_problem(
     """Create a new programming problem (instructor/admin only)."""
     problem_service = ProblemService(db)
     try:
-        problem = await problem_service.create(current_user.id, data)
+        problem = await problem_service.create(current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return ProblemResponse.model_validate(problem)
+    except ProblemNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except NotCourseOwnerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        )
+
+
+@router.get("/course/{course_id}", response_model=ProblemListResponse)
+async def get_course_problems(
+    course_id: UUID,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get programming problems for a course."""
+    problem_service = ProblemService(db)
+    try:
+        problems, total = await problem_service.get_by_course(
+            course_id,
+            current_user.id,
+            current_user.role.value,
+            page=page,
+            page_size=page_size,
+        )
+        return _paginated_problem_response(
+            [ProblemResponse.model_validate(problem) for problem in problems],
+            total,
+            page,
+            page_size,
+        )
     except ProblemNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -84,7 +133,7 @@ async def update_problem(
     """Update a problem (owner only)."""
     problem_service = ProblemService(db)
     try:
-        problem = await problem_service.update(problem_id, current_user.id, data)
+        problem = await problem_service.update(problem_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return ProblemResponse.model_validate(problem)
     except ProblemNotFoundError as e:
         raise HTTPException(
@@ -107,7 +156,7 @@ async def delete_problem(
     """Delete a problem (owner only)."""
     problem_service = ProblemService(db)
     try:
-        await problem_service.delete(problem_id, current_user.id)
+        await problem_service.delete(problem_id, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
     except ProblemNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -131,7 +180,7 @@ async def add_test_case(
     """Add a test case to a problem."""
     problem_service = ProblemService(db)
     try:
-        testcase = await problem_service.add_test_case(problem_id, current_user.id, data)
+        testcase = await problem_service.add_test_case(problem_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return TestCaseResponse.model_validate(testcase)
     except ProblemNotFoundError as e:
         raise HTTPException(
@@ -172,7 +221,7 @@ async def update_test_case(
     """Update a test case."""
     problem_service = ProblemService(db)
     try:
-        testcase = await problem_service.update_test_case(testcase_id, current_user.id, data)
+        testcase = await problem_service.update_test_case(testcase_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return TestCaseResponse.model_validate(testcase)
     except TestCaseNotFoundError as e:
         raise HTTPException(
@@ -195,7 +244,7 @@ async def delete_test_case(
     """Delete a test case."""
     problem_service = ProblemService(db)
     try:
-        await problem_service.delete_test_case(testcase_id, current_user.id)
+        await problem_service.delete_test_case(testcase_id, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
     except TestCaseNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -296,6 +345,22 @@ async def get_submission(
             )
         return SubmissionDetailResponse.model_validate(submission)
     except SubmissionNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+@router.get("/{problem_id}", response_model=ProblemDetailResponse)
+async def get_problem(
+    problem_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get problem details."""
+    problem_service = ProblemService(db)
+    try:
+        problem = await problem_service.get_by_id(problem_id)
+        return ProblemDetailResponse.model_validate(problem)
+    except ProblemNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),

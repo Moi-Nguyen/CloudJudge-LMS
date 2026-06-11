@@ -19,7 +19,8 @@ import { cn, getInitials, getRoleBadgeColor } from '@/utils'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'instructor', 'student'] },
-  { name: 'Courses', href: '/courses', icon: BookOpen, roles: ['admin', 'instructor', 'student'] },
+  { name: 'Explore courses', href: '/courses', icon: BookOpen, roles: ['admin', 'instructor', 'student'] },
+  { name: 'Created courses', href: '/instructor/courses', icon: GraduationCap, roles: ['admin', 'instructor'] },
   { name: 'My courses', href: '/my-courses', icon: GraduationCap, roles: ['student'] },
   { name: 'Create course', href: '/instructor/create-course', icon: PlusCircle, roles: ['admin', 'instructor'] },
   { name: 'Users', href: '/admin/users', icon: Users, roles: ['admin'] },

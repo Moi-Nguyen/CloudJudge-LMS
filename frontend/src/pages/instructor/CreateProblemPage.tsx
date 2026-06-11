@@ -1,14 +1,15 @@
-import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { problemsApi } from '@/api/endpoints'
+import { lessonsApi, problemsApi } from '@/api/endpoints'
 
 export default function CreateProblemPage() {
   const { lessonId } = useParams<{ lessonId: string }>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [problemId, setProblemId] = useState<string | null>(null)
+  const [courseId, setCourseId] = useState<string | null>(null)
 
   // Problem settings
   const [title, setTitle] = useState('')
@@ -18,6 +19,21 @@ export default function CreateProblemPage() {
   const [timeLimit, setTimeLimit] = useState(2000)
   const [memoryLimit, setMemoryLimit] = useState(256)
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
+
+  useEffect(() => {
+    const fetchLesson = async () => {
+      if (!lessonId) return
+
+      try {
+        const lesson = await lessonsApi.getLesson(lessonId)
+        setCourseId(lesson.course_id)
+      } catch (error) {
+        console.error('Failed to fetch lesson:', error)
+      }
+    }
+
+    fetchLesson()
+  }, [lessonId])
 
   // Test cases
   const [testCases, setTestCases] = useState<{
@@ -91,7 +107,9 @@ export default function CreateProblemPage() {
         })
       }
       toast.success('Thêm test case thành công!')
-      navigate(-1)
+      if (courseId) {
+        navigate(`/courses/${courseId}`)
+      }
     } catch (error) {
       console.error('Failed to add test cases:', error)
       toast.error('Thêm test case thất bại')
@@ -212,6 +230,16 @@ export default function CreateProblemPage() {
           <div className="space-y-6">
             <div className="bg-green-50 text-green-800 p-4 rounded-lg">
               Bài tập đã được tạo! Bây giờ thêm test case.
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link to={`/problem/${problemId}`} className="font-medium underline">
+                  View problem
+                </Link>
+                {courseId && (
+                  <Link to={`/courses/${courseId}`} className="font-medium underline">
+                    Back to course
+                  </Link>
+                )}
+              </div>
             </div>
 
             {/* Test Cases */}

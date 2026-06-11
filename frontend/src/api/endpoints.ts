@@ -23,19 +23,97 @@ import type {
   SubmissionCreate,
   ListResponse,
   StatsOverview,
+  DashboardResponse,
 } from '@/types'
 
-type ListKey = 'items' | 'users' | 'courses' | 'enrollments' | 'lessons' | 'attempts' | 'submissions'
+type ListKey = 'items' | 'users' | 'courses' | 'enrollments' | 'lessons' | 'attempts' | 'submissions' | 'problems'
 
-type BackendListResponse<T> = Partial<Record<ListKey, T[]>> & Omit<ListResponse<T>, 'items'>
+type BackendListResponse<T> = Partial<Record<ListKey, T[]>> & {
+  total?: number
+  page?: number
+  size?: number
+  pages?: number
+  page_size?: number
+  total_pages?: number
+}
 
-const normalizeListResponse = <T>(data: BackendListResponse<T>, listKey: ListKey): ListResponse<T> => ({
-  items: data.items ?? data[listKey] ?? [],
-  total: data.total ?? 0,
-  page: data.page ?? 1,
-  page_size: data.page_size ?? 0,
-  total_pages: data.total_pages ?? 1,
-})
+const DEFAULT_LIST_KEYS: ListKey[] = [
+  'items',
+  'users',
+  'courses',
+  'enrollments',
+  'lessons',
+  'attempts',
+  'submissions',
+  'problems',
+]
+
+const normalizeListResponse = <T>(
+  data: BackendListResponse<T> | T[] | null | undefined,
+  keys: ListKey[] = DEFAULT_LIST_KEYS,
+  endpoint = 'unknown endpoint'
+): ListResponse<T> & Partial<Record<ListKey, T[]>> => {
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page: 1,
+      size: data.length,
+      pages: 1,
+      page_size: data.length,
+      total_pages: 1,
+    }
+  }
+
+  if (data && typeof data === 'object') {
+    const matchedKey = keys.find((key) => Array.isArray(data[key]))
+    const items = matchedKey ? data[matchedKey] ?? [] : []
+    const size = data.size ?? data.page_size ?? items.length
+    const pages = data.pages ?? data.total_pages ?? 1
+
+    if (!matchedKey) {
+      console.warn(`[api] Could not normalize list response for ${endpoint}.`, data)
+    }
+
+    return {
+      ...data,
+      items,
+      total: data.total ?? items.length,
+      page: data.page ?? 1,
+      size,
+      pages,
+      page_size: size,
+      total_pages: pages,
+    }
+  }
+
+  console.warn(`[api] Could not normalize list response for ${endpoint}.`, data)
+
+  return {
+    items: [],
+    total: 0,
+    page: 1,
+    size: 0,
+    pages: 1,
+    page_size: 0,
+    total_pages: 1,
+  }
+}
+
+export const getApiErrorMessage = (error: unknown): string => {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const status = (error as { response?: { status?: number } }).response?.status
+
+    if (status === 403) return 'You do not have permission to view this page.'
+    if (status === 401) return 'Your session has expired. Please log in again.'
+  }
+
+  if (error && typeof error === 'object' && 'request' in error) {
+    return 'Cannot connect to the server. Please check your network or try again later.'
+  }
+
+  return 'Something went wrong while loading this page.'
+}
 
 // Auth API
 export const authApi = {
@@ -84,7 +162,7 @@ export const usersApi = {
     search?: string
   }): Promise<ListResponse<User>> => {
     const response = await api.get('/users', { params })
-    return normalizeListResponse<User>(response.data, 'users')
+    return normalizeListResponse<User>(response.data, ['items', 'users'], '/users')
   },
 
   updateUser: async (userId: string, data: Partial<User>): Promise<User> => {
@@ -110,7 +188,7 @@ export const coursesApi = {
     search?: string
   }): Promise<ListResponse<Course>> => {
     const response = await api.get('/courses', { params })
-    return normalizeListResponse<Course>(response.data, 'courses')
+    return normalizeListResponse<Course>(response.data, ['items', 'courses'], '/courses')
   },
 
   getCourse: async (courseId: string): Promise<CourseDetail> => {
@@ -138,7 +216,7 @@ export const coursesApi = {
     status?: string
   }): Promise<ListResponse<EnrollmentWithCourse>> => {
     const response = await api.get('/courses/my', { params })
-    return normalizeListResponse<EnrollmentWithCourse>(response.data, 'enrollments')
+    return normalizeListResponse<EnrollmentWithCourse>(response.data, ['items', 'enrollments'], '/courses/my')
   },
 
   getMyCreatedCourses: async (params?: {
@@ -146,12 +224,16 @@ export const coursesApi = {
     page_size?: number
   }): Promise<ListResponse<Course>> => {
     const response = await api.get('/courses/my/created', { params })
-    return normalizeListResponse<Course>(response.data, 'courses')
+    return normalizeListResponse<Course>(response.data, ['items', 'courses'], '/courses/my/created')
+  },
+
+  enrollCourse: async (courseId: string): Promise<Enrollment> => {
+    const response = await api.post(`/courses/${courseId}/enroll`)
+    return response.data
   },
 
   enrollInCourse: async (courseId: string): Promise<Enrollment> => {
-    const response = await api.post(`/courses/${courseId}/enroll`)
-    return response.data
+    return coursesApi.enrollCourse(courseId)
   },
 
   unenrollFromCourse: async (courseId: string): Promise<void> => {
@@ -169,9 +251,9 @@ export const lessonsApi = {
   getCourseLessons: async (courseId: string, params?: {
     page?: number
     page_size?: number
-  }): Promise<ListResponse<Lesson>> => {
+  }): Promise<ListResponse<Lesson> & { lessons?: Lesson[] }> => {
     const response = await api.get(`/lessons/course/${courseId}`, { params })
-    return normalizeListResponse<Lesson>(response.data, 'lessons')
+    return normalizeListResponse<Lesson>(response.data, ['items', 'lessons'], `/lessons/course/${courseId}`)
   },
 
   getLesson: async (lessonId: string): Promise<LessonDetail> => {
@@ -187,6 +269,12 @@ export const lessonsApi = {
     lesson_type: string
     order?: number
     duration_minutes?: number
+    file_url?: string
+    file_name?: string
+    file_type?: string
+    file_size?: number
+    storage_provider?: 'local' | 'supabase'
+    is_published?: boolean
   }): Promise<Lesson> => {
     const response = await api.post('/lessons', data)
     return response.data
@@ -211,6 +299,11 @@ export const quizzesApi = {
 
   getQuizForStudent: async (quizId: string): Promise<Quiz & { questions: QuizQuestion[] }> => {
     const response = await api.get(`/quizzes/${quizId}/student`)
+    return response.data
+  },
+
+  getQuizByLesson: async (lessonId: string): Promise<Quiz> => {
+    const response = await api.get(`/quizzes/lesson/${lessonId}`)
     return response.data
   },
 
@@ -277,7 +370,7 @@ export const quizzesApi = {
     page_size?: number
   }): Promise<ListResponse<QuizAttempt>> => {
     const response = await api.get(`/quizzes/${quizId}/attempts`, { params })
-    return response.data
+    return normalizeListResponse<QuizAttempt>(response.data, ['items', 'attempts'], `/quizzes/${quizId}/attempts`)
   },
 
   getMyAttempts: async (params?: {
@@ -285,7 +378,7 @@ export const quizzesApi = {
     page_size?: number
   }): Promise<ListResponse<QuizAttempt>> => {
     const response = await api.get('/quizzes/attempts/my', { params })
-    return response.data
+    return normalizeListResponse<QuizAttempt>(response.data, ['items', 'attempts'], '/quizzes/attempts/my')
   },
 }
 
@@ -294,6 +387,14 @@ export const problemsApi = {
   getProblem: async (problemId: string): Promise<Problem & { test_cases: TestCase[] }> => {
     const response = await api.get(`/problems/${problemId}`)
     return response.data
+  },
+
+  getCourseProblems: async (courseId: string, params?: {
+    page?: number
+    page_size?: number
+  }): Promise<ListResponse<Problem>> => {
+    const response = await api.get(`/problems/course/${courseId}`, { params })
+    return normalizeListResponse<Problem>(response.data, ['items', 'problems'], `/problems/course/${courseId}`)
   },
 
   createProblem: async (data: {
@@ -344,7 +445,16 @@ export const problemsApi = {
     problem_id?: string
   }): Promise<ListResponse<Submission>> => {
     const response = await api.get('/problems/submissions/my', { params })
-    return normalizeListResponse<Submission>(response.data, 'submissions')
+    return normalizeListResponse<Submission>(response.data, ['items', 'submissions'], '/problems/submissions/my')
+  },
+}
+
+
+// Dashboard API
+export const dashboardApi = {
+  getMe: async (): Promise<DashboardResponse> => {
+    const response = await api.get('/dashboard/me')
+    return response.data
   },
 }
 

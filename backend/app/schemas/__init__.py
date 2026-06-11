@@ -79,6 +79,18 @@ from .stats import (
     LeaderboardEntry,
     StatsResponse,
 )
+from .dashboard import (
+    DashboardUser,
+    DashboardCourse,
+    DashboardSubmission,
+    AdminDashboardStats,
+    InstructorDashboardStats,
+    StudentDashboardStats,
+    AdminDashboardResponse,
+    InstructorDashboardResponse,
+    StudentDashboardResponse,
+    DashboardResponse,
+)
 from .common import (
     APIResponse,
     PaginatedResponse,
@@ -162,6 +174,17 @@ __all__ = [
     "SubmissionStats",
     "LeaderboardEntry",
     "StatsResponse",
+    # Dashboard
+    "DashboardUser",
+    "DashboardCourse",
+    "DashboardSubmission",
+    "AdminDashboardStats",
+    "InstructorDashboardStats",
+    "StudentDashboardStats",
+    "AdminDashboardResponse",
+    "InstructorDashboardResponse",
+    "StudentDashboardResponse",
+    "DashboardResponse",
     # Common
     "APIResponse",
     "PaginatedResponse",

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.dependencies import get_current_user, get_current_instructor
-from ....models import User
+from ....models import User, UserRole
 from ....schemas.course import (
     CourseCreate,
     CourseUpdate,
@@ -148,7 +148,7 @@ async def update_course(
     """Update a course (owner only)."""
     course_service = CourseService(db)
     try:
-        course = await course_service.update(course_id, current_user.id, data)
+        course = await course_service.update(course_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return CourseResponse.model_validate(course)
     except CourseNotFoundError as e:
         raise HTTPException(
@@ -171,7 +171,7 @@ async def delete_course(
     """Delete a course (owner only)."""
     course_service = CourseService(db)
     try:
-        await course_service.delete(course_id, current_user.id)
+        await course_service.delete(course_id, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
         return MessageResponse(message="Course deleted successfully")
     except CourseNotFoundError as e:
         raise HTTPException(

@@ -51,6 +51,9 @@ export interface Course {
   is_published: boolean
   created_at: string
   updated_at: string
+  lesson_count?: number
+  student_count?: number
+  problems_count?: number
 }
 
 export interface CourseDetail extends Course {
@@ -97,6 +100,14 @@ export interface Lesson {
   lesson_type: 'video' | 'document' | 'quiz' | 'programming'
   order: number
   duration_minutes?: number
+  file_url?: string
+  external_url?: string
+  file_name?: string
+  file_type?: string
+  file_size?: number
+  storage_provider?: 'local' | 'external' | 'supabase'
+  is_published: boolean
+  published_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -110,8 +121,10 @@ export interface Document {
   lesson_id: string
   title: string
   file_url: string
+  file_name?: string
   file_type?: string
   file_size?: number
+  storage_provider?: 'local' | 'external' | 'supabase'
   created_at: string
 }
 
@@ -234,11 +247,88 @@ export interface StatsOverview {
   new_users_this_month: number
 }
 
+// Dashboard types
+export interface DashboardUser {
+  id: string
+  email: string
+  full_name: string
+  role: UserRole
+  created_at: string
+}
+
+export interface DashboardCourse {
+  id: string
+  title: string
+  is_published: boolean
+  created_at: string
+  progress?: number | null
+  student_count?: number
+  lesson_count?: number
+  problem_count?: number
+}
+
+export interface DashboardSubmission {
+  id: string
+  problem_id: string
+  user_id: string
+  problem_title: string
+  user_name: string
+  status: SubmissionStatus
+  score: number
+  total_points: number
+  submitted_at: string
+}
+
+export interface AdminDashboardResponse {
+  role: 'admin'
+  stats: {
+    total_users: number
+    total_courses: number
+    total_enrollments: number
+    total_lessons: number
+    total_problems: number
+    total_submissions: number
+  }
+  recent_users: DashboardUser[]
+  recent_courses: DashboardCourse[]
+  recent_submissions: DashboardSubmission[]
+}
+
+export interface InstructorDashboardResponse {
+  role: 'instructor'
+  stats: {
+    created_courses: number
+    total_students: number
+    total_lessons: number
+    total_problems: number
+    total_submissions: number
+  }
+  courses: DashboardCourse[]
+  recent_submissions: DashboardSubmission[]
+}
+
+export interface StudentDashboardResponse {
+  role: 'student'
+  stats: {
+    enrolled_courses: number
+    completed_courses: number
+    average_progress: number
+    total_submissions: number
+    accepted_submissions: number
+  }
+  my_courses: DashboardCourse[]
+  recent_submissions: DashboardSubmission[]
+}
+
+export type DashboardResponse = AdminDashboardResponse | InstructorDashboardResponse | StudentDashboardResponse
+
 // Pagination
 export interface PaginatedResponse<T> {
   items: T[]
   total: number
   page: number
+  size: number
+  pages: number
   page_size: number
   total_pages: number
   has_next: boolean
@@ -249,6 +339,8 @@ export interface ListResponse<T> {
   items: T[]
   total: number
   page: number
+  size: number
+  pages: number
   page_size: number
   total_pages: number
 }

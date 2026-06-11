@@ -19,6 +19,7 @@ from ..repositories import (
     TestResultRepository,
     LessonRepository,
     CourseRepository,
+    EnrollmentRepository,
 )
 from ..errors import (
     ProblemNotFoundError,
@@ -37,15 +38,16 @@ class ProblemService:
         self.testcase_repo = TestCaseRepository(db)
         self.lesson_repo = LessonRepository(db)
         self.course_repo = CourseRepository(db)
+        self.enrollment_repo = EnrollmentRepository(db)
 
-    async def create(self, instructor_id: UUID, data: ProblemCreate) -> ProgrammingProblem:
+    async def create(self, instructor_id: UUID, data: ProblemCreate, is_admin: bool = False) -> ProgrammingProblem:
         """Create a new programming problem."""
         lesson = await self.lesson_repo.get_by_id(data.lesson_id)
         if not lesson:
             raise ProblemNotFoundError("Lesson not found")
 
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != instructor_id:
+        if not is_admin and str(course.instructor_id) != str(instructor_id):
             raise NotCourseOwnerError()
 
         problem = ProgrammingProblem(
@@ -67,11 +69,38 @@ class ProblemService:
             raise ProblemNotFoundError()
         return problem
 
+    async def get_by_course(
+        self,
+        course_id: UUID,
+        user_id: UUID,
+        user_role: str,
+        page: int = 1,
+        page_size: int = 100,
+    ) -> tuple[list[ProgrammingProblem], int]:
+        """Get problems for a course when the user can view that course."""
+        course = await self.course_repo.get_by_id(course_id)
+        if not course:
+            raise ProblemNotFoundError("Course not found")
+
+        is_admin = user_role == "admin"
+        is_owner = str(course.instructor_id) == str(user_id)
+        enrollment = await self.enrollment_repo.get_by_user_and_course(user_id, course_id)
+        can_view = is_admin or is_owner or (course.is_published and enrollment is not None)
+
+        if not can_view:
+            raise NotCourseOwnerError()
+
+        skip = (page - 1) * page_size
+        problems = await self.problem_repo.get_by_course(course_id, skip=skip, limit=page_size)
+        total = await self.problem_repo.count_by_course(course_id)
+        return problems, total
+
     async def update(
         self,
         problem_id: UUID,
         user_id: UUID,
         data: ProblemUpdate,
+        is_admin: bool = False,
     ) -> ProgrammingProblem:
         """Update a problem."""
         problem = await self.problem_repo.get_by_id(problem_id)
@@ -80,7 +109,7 @@ class ProblemService:
 
         lesson = await self.lesson_repo.get_by_id(problem.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         update_data = data.model_dump(exclude_unset=True)
@@ -89,7 +118,7 @@ class ProblemService:
 
         return await self.problem_repo.update(problem)
 
-    async def delete(self, problem_id: UUID, user_id: UUID) -> None:
+    async def delete(self, problem_id: UUID, user_id: UUID, is_admin: bool = False) -> None:
         """Delete a problem."""
         problem = await self.problem_repo.get_by_id(problem_id)
         if not problem:
@@ -97,7 +126,7 @@ class ProblemService:
 
         lesson = await self.lesson_repo.get_by_id(problem.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         await self.problem_repo.delete(problem)
@@ -107,6 +136,7 @@ class ProblemService:
         problem_id: UUID,
         user_id: UUID,
         data: TestCaseCreate,
+        is_admin: bool = False,
     ) -> TestCase:
         """Add a test case to a problem."""
         problem = await self.problem_repo.get_by_id(problem_id)
@@ -115,7 +145,7 @@ class ProblemService:
 
         lesson = await self.lesson_repo.get_by_id(problem.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         testcase = TestCase(
@@ -133,6 +163,7 @@ class ProblemService:
         testcase_id: UUID,
         user_id: UUID,
         data: TestCaseUpdate,
+        is_admin: bool = False,
     ) -> TestCase:
         """Update a test case."""
         testcase = await self.testcase_repo.get_by_id(testcase_id)
@@ -142,7 +173,7 @@ class ProblemService:
         problem = await self.problem_repo.get_by_id(testcase.problem_id)
         lesson = await self.lesson_repo.get_by_id(problem.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         update_data = data.model_dump(exclude_unset=True)
@@ -151,7 +182,7 @@ class ProblemService:
 
         return await self.testcase_repo.update(testcase)
 
-    async def delete_test_case(self, testcase_id: UUID, user_id: UUID) -> None:
+    async def delete_test_case(self, testcase_id: UUID, user_id: UUID, is_admin: bool = False) -> None:
         """Delete a test case."""
         testcase = await self.testcase_repo.get_by_id(testcase_id)
         if not testcase:
@@ -160,7 +191,7 @@ class ProblemService:
         problem = await self.problem_repo.get_by_id(testcase.problem_id)
         lesson = await self.lesson_repo.get_by_id(problem.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         await self.testcase_repo.delete(testcase)

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen } from 'lucide-react'
-import { coursesApi } from '@/api/endpoints'
+import { coursesApi, getApiErrorMessage } from '@/api/endpoints'
 import type { EnrollmentWithCourse } from '@/types'
 import { formatDate, cn } from '@/utils'
 import { LoadingSpinner } from '@/components/common'
@@ -9,14 +9,19 @@ import { LoadingSpinner } from '@/components/common'
 export default function MyCoursesPage() {
   const [enrollments, setEnrollments] = useState<EnrollmentWithCourse[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchMyCourses = async () => {
+      setLoading(true)
+      setError(null)
       try {
         const response = await coursesApi.getMyCourses()
-        setEnrollments(response.items)
+        setEnrollments(response.items ?? [])
       } catch (error) {
         console.error('Failed to fetch courses:', error)
+        setEnrollments([])
+        setError(getApiErrorMessage(error))
       } finally {
         setLoading(false)
       }
@@ -32,6 +37,10 @@ export default function MyCoursesPage() {
       {loading ? (
         <div className="flex justify-center py-12">
           <LoadingSpinner size="lg" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 text-red-600">
+          {error}
         </div>
       ) : enrollments.length === 0 ? (
         <div className="text-center py-12">

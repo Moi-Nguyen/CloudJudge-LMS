@@ -1,14 +1,47 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { quizzesApi } from '@/api/endpoints'
+import { lessonsApi, quizzesApi } from '@/api/endpoints'
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (!axios.isAxiosError(error)) return fallback
+
+  const detail = error.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item.msg || item.message || JSON.stringify(item)).join(', ')
+  }
+  return fallback
+}
 
 export default function CreateQuizPage() {
-  const { lessonId } = useParams<{ lessonId: string }>()
+  const { courseId, lessonId } = useParams<{ courseId?: string; lessonId?: string }>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [quizId, setQuizId] = useState<string | null>(null)
+  const [quizCourseId, setQuizCourseId] = useState<string | null>(courseId || null)
+
+  useEffect(() => {
+    if (courseId) {
+      setQuizCourseId(courseId)
+      return
+    }
+
+    if (!lessonId) return
+
+    const loadLessonCourse = async () => {
+      try {
+        const lesson = await lessonsApi.getLesson(lessonId)
+        setQuizCourseId(lesson.course_id)
+      } catch (error) {
+        console.error('Failed to load lesson course:', error)
+      }
+    }
+
+    loadLessonCourse()
+  }, [courseId, lessonId])
 
   // Quiz settings
   const [title, setTitle] = useState('')
@@ -65,14 +98,51 @@ export default function CreateQuizPage() {
   }
 
   const handleCreateQuiz = async () => {
-    if (!lessonId) return
+    if (!lessonId && !quizCourseId) {
+      toast.error('Missing course_id or lesson_id to create quiz')
+      return
+    }
+    if (!title.trim()) {
+      toast.error('Tiêu đề quiz là bắt buộc')
+      return
+    }
+    if (timeLimit !== undefined && timeLimit <= 0) {
+      toast.error('Thời gian làm bài phải lớn hơn 0')
+      return
+    }
+    if (maxAttempts <= 0) {
+      toast.error('Số lần làm bài phải lớn hơn 0')
+      return
+    }
+    if (passingScore < 0 || passingScore > 100) {
+      toast.error('Điểm qua bài phải từ 0 đến 100')
+      return
+    }
 
     setLoading(true)
     try {
+      let targetLessonId = lessonId
+
+      if (!targetLessonId && quizCourseId) {
+        const lesson = await lessonsApi.createLesson({
+          course_id: quizCourseId,
+          title: title.trim(),
+          description: description.trim() || undefined,
+          content: description.trim() || '',
+          lesson_type: 'quiz',
+        })
+        targetLessonId = lesson.id
+        setQuizCourseId(lesson.course_id)
+      }
+
+      if (!targetLessonId) {
+        throw new Error('Missing lesson_id after lesson creation')
+      }
+
       const quiz = await quizzesApi.createQuiz({
-        lesson_id: lessonId,
-        title,
-        description,
+        lesson_id: targetLessonId,
+        title: title.trim(),
+        description: description.trim() || undefined,
         time_limit: timeLimit,
         max_attempts: maxAttempts,
         passing_score: passingScore,
@@ -80,8 +150,16 @@ export default function CreateQuizPage() {
       setQuizId(quiz.id)
       toast.success('Tạo quiz thành công!')
     } catch (error) {
-      console.error('Failed to create quiz:', error)
-      toast.error('Tạo quiz thất bại')
+      if (axios.isAxiosError(error)) {
+        console.error('Failed to create quiz:', {
+          status: error.response?.status,
+          detail: error.response?.data?.detail,
+          data: error.response?.data,
+        })
+      } else {
+        console.error('Failed to create quiz:', error)
+      }
+      toast.error(getApiErrorMessage(error, 'Tạo quiz thất bại'))
     } finally {
       setLoading(false)
     }
@@ -102,7 +180,9 @@ export default function CreateQuizPage() {
         })
       }
       toast.success('Thêm câu hỏi thành công!')
-      navigate(-1)
+      if (quizCourseId) {
+        navigate(`/instructor/edit-course/${quizCourseId}`)
+      }
     } catch (error) {
       console.error('Failed to add questions:', error)
       toast.error('Thêm câu hỏi thất bại')
@@ -271,6 +351,15 @@ export default function CreateQuizPage() {
             >
               {loading ? 'Đang lưu...' : 'Lưu câu hỏi'}
             </button>
+
+            {quizCourseId && (
+              <button
+                onClick={() => navigate(`/instructor/edit-course/${quizCourseId}`)}
+                className="btn-outline ml-2"
+              >
+                Back to course
+              </button>
+            )}
           </div>
         )}
       </div>

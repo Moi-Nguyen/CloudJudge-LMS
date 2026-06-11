@@ -1,5 +1,6 @@
 from typing import Optional
 from uuid import UUID
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,14 +23,14 @@ class LessonService:
         self.document_repo = DocumentRepository(db)
         self.course_repo = CourseRepository(db)
 
-    async def create(self, instructor_id: UUID, data: LessonCreate) -> Lesson:
+    async def create(self, instructor_id: UUID, data: LessonCreate, is_admin: bool = False) -> Lesson:
         """Create a new lesson."""
         # Verify course exists and user owns it
         course = await self.course_repo.get_by_id(data.course_id)
         if not course:
             raise CourseNotFoundError()
 
-        if course.instructor_id != instructor_id:
+        if not is_admin and str(course.instructor_id) != str(instructor_id):
             raise NotCourseOwnerError()
 
         # Get next order
@@ -43,6 +44,13 @@ class LessonService:
             lesson_type=data.lesson_type,
             order=data.order or order,
             duration_minutes=data.duration_minutes,
+            file_url=data.file_url,
+            file_name=data.file_name,
+            file_type=data.file_type,
+            file_size=data.file_size,
+            storage_provider=data.storage_provider,
+            is_published=data.is_published,
+            published_at=datetime.utcnow() if data.is_published else None,
         )
         return await self.lesson_repo.create(lesson)
 
@@ -58,14 +66,16 @@ class LessonService:
         course_id: UUID,
         page: int = 1,
         page_size: int = 100,
+        published_only: bool = False,
     ) -> tuple[list[Lesson], int]:
         """Get all lessons for a course."""
         lessons = await self.lesson_repo.get_by_course(
             course_id,
             skip=(page-1)*page_size,
             limit=page_size,
+            published_only=published_only,
         )
-        total = await self.lesson_repo.count_by_course(course_id)
+        total = await self.lesson_repo.count_by_course(course_id, published_only=published_only)
         return lessons, total
 
     async def update(
@@ -73,6 +83,7 @@ class LessonService:
         lesson_id: UUID,
         user_id: UUID,
         data: LessonUpdate,
+        is_admin: bool = False,
     ) -> Lesson:
         """Update a lesson."""
         lesson = await self.lesson_repo.get_by_id(lesson_id)
@@ -80,35 +91,38 @@ class LessonService:
             raise LessonNotFoundError()
 
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         update_data = data.model_dump(exclude_unset=True)
+        if "is_published" in update_data:
+            lesson.published_at = datetime.utcnow() if update_data["is_published"] else None
+
         for field, value in update_data.items():
             setattr(lesson, field, value)
 
         return await self.lesson_repo.update(lesson)
 
-    async def delete(self, lesson_id: UUID, user_id: UUID) -> None:
+    async def delete(self, lesson_id: UUID, user_id: UUID, is_admin: bool = False) -> None:
         """Delete a lesson."""
         lesson = await self.lesson_repo.get_by_id(lesson_id)
         if not lesson:
             raise LessonNotFoundError()
 
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         await self.lesson_repo.delete(lesson)
 
-    async def reorder(self, lesson_id: UUID, new_order: int, user_id: UUID) -> Lesson:
+    async def reorder(self, lesson_id: UUID, new_order: int, user_id: UUID, is_admin: bool = False) -> Lesson:
         """Reorder a lesson."""
         lesson = await self.lesson_repo.get_by_id(lesson_id)
         if not lesson:
             raise LessonNotFoundError()
 
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         lesson.order = new_order
@@ -134,8 +148,10 @@ class DocumentService:
             lesson_id=data.lesson_id,
             title=data.title,
             file_url=data.file_url,
+            file_name=data.file_name,
             file_type=data.file_type,
             file_size=data.file_size,
+            storage_provider=data.storage_provider,
         )
         return await self.document_repo.create(document)
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen, Eye, Search } from 'lucide-react'
-import { coursesApi } from '@/api/endpoints'
+import { coursesApi, getApiErrorMessage } from '@/api/endpoints'
 import type { Course } from '@/types'
 import { formatDate, cn } from '@/utils'
 import { LoadingSpinner } from '@/components/common'
@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/common'
 export default function AdminCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [search, setSearch] = useState('')
@@ -16,16 +17,19 @@ export default function AdminCoursesPage() {
   useEffect(() => {
     const fetchCourses = async () => {
       setLoading(true)
+      setError(null)
       try {
         const response = await coursesApi.listCourses({
           page,
           page_size: 20,
           search: search || undefined,
         })
-        setCourses(response.items)
-        setTotalPages(response.total_pages)
+        setCourses(response.items ?? [])
+        setTotalPages(response.pages ?? response.total_pages ?? 1)
       } catch (error) {
         console.error('Failed to fetch courses:', error)
+        setCourses([])
+        setError(getApiErrorMessage(error))
       } finally {
         setLoading(false)
       }
@@ -56,6 +60,10 @@ export default function AdminCoursesPage() {
       {loading ? (
         <div className="flex justify-center py-12">
           <LoadingSpinner size="lg" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 text-red-600">
+          {error}
         </div>
       ) : courses.length === 0 ? (
         <div className="text-center py-12">

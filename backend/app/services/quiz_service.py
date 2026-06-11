@@ -19,6 +19,7 @@ from ..repositories import (
     QuizAnswerRepository,
     LessonRepository,
     CourseRepository,
+    EnrollmentRepository,
 )
 from ..errors import (
     QuizNotFoundError,
@@ -27,6 +28,7 @@ from ..errors import (
     MaxAttemptsReachedError,
     QuizAlreadySubmittedError,
     NotCourseOwnerError,
+    NotEnrolledError,
 )
 
 
@@ -41,8 +43,9 @@ class QuizService:
         self.answer_repo = QuizAnswerRepository(db)
         self.lesson_repo = LessonRepository(db)
         self.course_repo = CourseRepository(db)
+        self.enrollment_repo = EnrollmentRepository(db)
 
-    async def create(self, instructor_id: UUID, data: QuizCreate) -> Quiz:
+    async def create(self, instructor_id: UUID, data: QuizCreate, is_admin: bool = False) -> Quiz:
         """Create a new quiz."""
         # Verify lesson exists and user owns the course
         lesson = await self.lesson_repo.get_by_id(data.lesson_id)
@@ -50,7 +53,7 @@ class QuizService:
             raise QuizNotFoundError("Lesson not found")
 
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != instructor_id:
+        if not is_admin and str(course.instructor_id) != str(instructor_id):
             raise NotCourseOwnerError()
 
         # Check if quiz already exists for this lesson
@@ -70,6 +73,13 @@ class QuizService:
         )
         return await self.quiz_repo.create(quiz)
 
+    async def get_by_lesson(self, lesson_id: UUID) -> Quiz:
+        """Get quiz by lesson ID."""
+        quiz = await self.quiz_repo.get_by_lesson(lesson_id)
+        if not quiz:
+            raise QuizNotFoundError("Quiz not found for this lesson")
+        return quiz
+
     async def get_by_id(self, quiz_id: UUID) -> Quiz:
         """Get quiz by ID with questions."""
         quiz = await self.quiz_repo.get_with_questions(quiz_id)
@@ -77,9 +87,20 @@ class QuizService:
             raise QuizNotFoundError()
         return quiz
 
-    async def get_for_student(self, quiz_id: UUID) -> Quiz:
+    async def get_for_student(self, quiz_id: UUID, student_id: UUID) -> Quiz:
         """Get quiz for student (without correct answers)."""
-        return await self.get_by_id(quiz_id)
+        quiz = await self.get_by_id(quiz_id)
+        lesson = await self.lesson_repo.get_by_id(quiz.lesson_id)
+        if not lesson:
+            raise QuizNotFoundError("Quiz lesson not found")
+
+        if not await self.enrollment_repo.is_enrolled(student_id, lesson.course_id):
+            raise NotEnrolledError("Student is not enrolled in this course")
+
+        if not quiz.questions:
+            raise QuizNotFoundError("Quiz has no questions")
+
+        return quiz
 
     async def update(
         self,
@@ -210,7 +231,7 @@ class QuizService:
         if not attempt:
             raise AttemptNotFoundError()
 
-        if attempt.user_id != user_id:
+        if str(attempt.user_id) != str(user_id):
             raise AttemptNotFoundError("Not your attempt")
 
         if attempt.submitted_at:
@@ -225,12 +246,12 @@ class QuizService:
 
         for answer_data in submission.answers:
             question = next(
-                (q for q in quiz.questions if q.id == answer_data.question_id),
+                (q for q in quiz.questions if str(q.id) == str(answer_data.question_id)),
                 None
             )
             if question:
                 total_points += question.points
-                is_correct = answer_data.selected_answer == question.correct_answer
+                is_correct = str(answer_data.selected_answer).strip() == str(question.correct_answer).strip()
                 points = question.points if is_correct else 0
                 earned_points += points
 

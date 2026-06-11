@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Search, Ban, CheckCircle, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { usersApi } from '@/api/endpoints'
+import { getApiErrorMessage, usersApi } from '@/api/endpoints'
 import type { User } from '@/types'
 import { formatDate, cn, getRoleBadgeColor } from '@/utils'
 import { LoadingSpinner } from '@/components/common'
@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/common'
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [search, setSearch] = useState('')
@@ -17,6 +18,7 @@ export default function AdminUsersPage() {
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true)
+      setError(null)
       try {
         const response = await usersApi.listUsers({
           page,
@@ -24,10 +26,12 @@ export default function AdminUsersPage() {
           search: search || undefined,
           role: roleFilter || undefined,
         })
-        setUsers(response.items)
-        setTotalPages(response.total_pages)
+        setUsers(response.items ?? [])
+        setTotalPages(response.pages ?? response.total_pages ?? 1)
       } catch (error) {
         console.error('Failed to fetch users:', error)
+        setUsers([])
+        setError(getApiErrorMessage(error))
       } finally {
         setLoading(false)
       }
@@ -106,6 +110,12 @@ export default function AdminUsersPage() {
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center">
                     <LoadingSpinner size="lg" className="mx-auto" />
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-red-600">
+                    {error}
                   </td>
                 </tr>
               ) : users.length === 0 ? (

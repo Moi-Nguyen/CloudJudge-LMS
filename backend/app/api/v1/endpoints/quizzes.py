@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.dependencies import get_current_user, get_current_instructor
-from ....models import User
+from ....models import User, UserRole
 from ....schemas.quiz import (
     QuizCreate,
     QuizUpdate,
@@ -22,7 +22,7 @@ from ....schemas.quiz import (
     AttemptListResponse,
 )
 from ....services import QuizService
-from ....errors import QuizNotFoundError, QuestionNotFoundError, AttemptNotFoundError, MaxAttemptsReachedError, NotCourseOwnerError, QuizAlreadySubmittedError
+from ....errors import QuizNotFoundError, QuestionNotFoundError, AttemptNotFoundError, MaxAttemptsReachedError, NotCourseOwnerError, QuizAlreadySubmittedError, NotEnrolledError
 
 
 router = APIRouter(prefix="/quizzes", tags=["Quizzes"])
@@ -37,7 +37,7 @@ async def create_quiz(
     """Create a new quiz (instructor/admin only)."""
     quiz_service = QuizService(db)
     try:
-        quiz = await quiz_service.create(current_user.id, data)
+        quiz = await quiz_service.create(current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return QuizResponse.model_validate(quiz)
     except QuizNotFoundError as e:
         raise HTTPException(
@@ -47,6 +47,29 @@ async def create_quiz(
     except NotCourseOwnerError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        )
+    except QuizAlreadySubmittedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+
+@router.get("/lesson/{lesson_id}", response_model=QuizResponse)
+async def get_quiz_by_lesson(
+    lesson_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get quiz metadata by lesson ID."""
+    quiz_service = QuizService(db)
+    try:
+        quiz = await quiz_service.get_by_lesson(lesson_id)
+        return QuizResponse.model_validate(quiz)
+    except QuizNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
 
@@ -78,12 +101,17 @@ async def get_quiz_for_student(
     """Get quiz for student (without correct answers)."""
     quiz_service = QuizService(db)
     try:
-        quiz = await quiz_service.get_for_student(quiz_id)
+        quiz = await quiz_service.get_for_student(quiz_id, current_user.id)
         # Convert to student response (without correct answers)
         return QuizForStudentResponse.model_validate(quiz)
     except QuizNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except NotEnrolledError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(e),
         )
 

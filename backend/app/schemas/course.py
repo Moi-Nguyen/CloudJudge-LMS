@@ -28,6 +28,9 @@ class CourseResponse(CourseBase):
     is_published: bool
     created_at: datetime
     updated_at: datetime
+    lesson_count: int = 0
+    student_count: int = 0
+    problems_count: int = 0
 
     class Config:
         from_attributes = True
@@ -35,8 +38,6 @@ class CourseResponse(CourseBase):
 
 class CourseDetailResponse(CourseResponse):
     instructor: UserBrief
-    lesson_count: int = 0
-    student_count: int = 0
 
 
 class CourseListResponse(BaseModel):

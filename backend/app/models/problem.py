@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Boolean
-from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 
 from ..core.database import Base
@@ -26,8 +25,8 @@ class ProgrammingProblem(Base):
 
     __tablename__ = "programming_problems"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    lesson_id = Column(CHAR(36), ForeignKey("lessons.id"), unique=True, nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    lesson_id = Column(String(36), ForeignKey("lessons.id"), unique=True, nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     starter_code = Column(Text, nullable=True)
@@ -53,8 +52,8 @@ class TestCase(Base):
 
     __tablename__ = "test_cases"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    problem_id = Column(CHAR(36), ForeignKey("programming_problems.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    problem_id = Column(String(36), ForeignKey("programming_problems.id"), nullable=False)
     input = Column(Text, nullable=False)
     expected_output = Column(Text, nullable=False)
     output = Column(Text, nullable=True)  # Actual output after running
@@ -79,9 +78,9 @@ class Submission(Base):
 
     __tablename__ = "submissions"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    problem_id = Column(CHAR(36), ForeignKey("programming_problems.id"), nullable=False)
-    user_id = Column(CHAR(36), ForeignKey("users.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    problem_id = Column(String(36), ForeignKey("programming_problems.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     code = Column(Text, nullable=False)
     language = Column(String(50), nullable=False)
     status = Column(String(20), default=SubmissionStatus.PENDING)
@@ -107,9 +106,9 @@ class TestResult(Base):
 
     __tablename__ = "test_results"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    submission_id = Column(CHAR(36), ForeignKey("submissions.id"), nullable=False)
-    test_case_id = Column(CHAR(36), ForeignKey("test_cases.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    submission_id = Column(String(36), ForeignKey("submissions.id"), nullable=False)
+    test_case_id = Column(String(36), ForeignKey("test_cases.id"), nullable=False)
     actual_output = Column(Text, nullable=True)
     status = Column(String(20), default="pending")
     execution_time = Column(Integer, nullable=True)

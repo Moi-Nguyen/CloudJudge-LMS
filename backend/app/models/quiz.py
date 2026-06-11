@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, JSON, Boolean
-from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 
 from ..core.database import Base
@@ -12,8 +11,8 @@ class Quiz(Base):
 
     __tablename__ = "quizzes"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    lesson_id = Column(CHAR(36), ForeignKey("lessons.id"), unique=True, nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    lesson_id = Column(String(36), ForeignKey("lessons.id"), unique=True, nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     time_limit = Column(Integer, nullable=True)  # minutes
@@ -38,8 +37,8 @@ class QuizQuestion(Base):
 
     __tablename__ = "quiz_questions"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    quiz_id = Column(CHAR(36), ForeignKey("quizzes.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    quiz_id = Column(String(36), ForeignKey("quizzes.id"), nullable=False)
     question = Column(Text, nullable=False)
     question_type = Column(String(20), default="multiple_choice")  # multiple_choice, true_false
     options = Column(JSON, nullable=True)  # List of options
@@ -62,9 +61,9 @@ class QuizAttempt(Base):
 
     __tablename__ = "quiz_attempts"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    quiz_id = Column(CHAR(36), ForeignKey("quizzes.id"), nullable=False)
-    user_id = Column(CHAR(36), ForeignKey("users.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    quiz_id = Column(String(36), ForeignKey("quizzes.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     score = Column(Integer, default=0)
     total_points = Column(Integer, default=0)
     percentage = Column(Integer, default=0)
@@ -87,9 +86,9 @@ class QuizAnswer(Base):
 
     __tablename__ = "quiz_answers"
 
-    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    attempt_id = Column(CHAR(36), ForeignKey("quiz_attempts.id"), nullable=False)
-    question_id = Column(CHAR(36), ForeignKey("quiz_questions.id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    attempt_id = Column(String(36), ForeignKey("quiz_attempts.id"), nullable=False)
+    question_id = Column(String(36), ForeignKey("quiz_questions.id"), nullable=False)
     selected_answer = Column(String(255), nullable=True)
     is_correct = Column(Boolean, default=False)
     points_earned = Column(Integer, default=0)

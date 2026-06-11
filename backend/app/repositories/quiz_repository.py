@@ -19,9 +19,9 @@ class QuizRepository(BaseRepository[Quiz]):
         """Get quiz with all questions loaded."""
         result = await self.db.execute(
             select(Quiz)
-            .where(Quiz.id == quiz_id)
+            .where(Quiz.id == str(quiz_id))
             .options(
-                selectinload(Quiz.questions).selectinload(QuizAnswer),
+                selectinload(Quiz.questions).selectinload(QuizQuestion.answers),
                 selectinload(Quiz.lesson),
             )
         )
@@ -30,7 +30,7 @@ class QuizRepository(BaseRepository[Quiz]):
     async def get_by_lesson(self, lesson_id: UUID) -> Optional[Quiz]:
         """Get quiz by lesson ID."""
         result = await self.db.execute(
-            select(Quiz).where(Quiz.lesson_id == lesson_id)
+            select(Quiz).where(Quiz.lesson_id == str(lesson_id))
         )
         return result.scalar_one_or_none()
 
@@ -49,7 +49,7 @@ class QuizQuestionRepository(BaseRepository[QuizQuestion]):
         limit: int = 100
     ) -> list[QuizQuestion]:
         """Get all questions for a quiz."""
-        query = select(QuizQuestion).where(QuizQuestion.quiz_id == quiz_id)
+        query = select(QuizQuestion).where(QuizQuestion.quiz_id == str(quiz_id))
 
         if shuffle:
             query = query.order_by(func.random())
@@ -78,8 +78,8 @@ class QuizAttemptRepository(BaseRepository[QuizAttempt]):
             select(QuizAttempt)
             .where(
                 and_(
-                    QuizAttempt.quiz_id == quiz_id,
-                    QuizAttempt.user_id == user_id,
+                    QuizAttempt.quiz_id == str(quiz_id),
+                    QuizAttempt.user_id == str(user_id),
                 )
             )
             .options(selectinload(QuizAttempt.answers))
@@ -94,8 +94,8 @@ class QuizAttemptRepository(BaseRepository[QuizAttempt]):
             .select_from(QuizAttempt)
             .where(
                 and_(
-                    QuizAttempt.quiz_id == quiz_id,
-                    QuizAttempt.user_id == user_id,
+                    QuizAttempt.quiz_id == str(quiz_id),
+                    QuizAttempt.user_id == str(user_id),
                 )
             )
         )
@@ -111,8 +111,8 @@ class QuizAttemptRepository(BaseRepository[QuizAttempt]):
             select(QuizAttempt)
             .where(
                 and_(
-                    QuizAttempt.quiz_id == quiz_id,
-                    QuizAttempt.user_id == user_id,
+                    QuizAttempt.quiz_id == str(quiz_id),
+                    QuizAttempt.user_id == str(user_id),
                     QuizAttempt.submitted_at.isnot(None),
                 )
             )
@@ -130,7 +130,7 @@ class QuizAttemptRepository(BaseRepository[QuizAttempt]):
         """Get recent quiz attempts for a user."""
         result = await self.db.execute(
             select(QuizAttempt)
-            .where(QuizAttempt.user_id == user_id)
+            .where(QuizAttempt.user_id == str(user_id))
             .options(
                 selectinload(QuizAttempt.quiz).selectinload("lesson"),
                 selectinload(QuizAttempt.answers),

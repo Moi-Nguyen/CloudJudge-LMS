@@ -4,7 +4,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models import Course, Enrollment, User, UserRole
+from ..models import Course, Enrollment, User, UserRole, Lesson
 from .base_repository import BaseRepository
 
 
@@ -42,7 +42,11 @@ class CourseRepository(BaseRepository[Course]):
 
         result = await self.db.execute(
             query
-            .options(selectinload(Course.instructor))
+            .options(
+                selectinload(Course.instructor),
+                selectinload(Course.lessons).selectinload(Lesson.problem),
+                selectinload(Course.enrollments),
+            )
             .order_by(Course.created_at.desc())
             .offset(skip)
             .limit(limit)

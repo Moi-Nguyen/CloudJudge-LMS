@@ -23,14 +23,19 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Database
-    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/cloudjudge"
+    DATABASE_URL: str
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
 
-    # Cloud Storage (GCP)
+    # Cloud Storage (GCP legacy / optional)
     GCP_PROJECT_ID: Optional[str] = None
     GCP_STORAGE_BUCKET: Optional[str] = None
     GCP_CREDENTIALS_PATH: Optional[str] = None
+
+    # Supabase Storage (future upload integration)
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
+    SUPABASE_STORAGE_BUCKET: str = "lesson-files"
 
     # CORS
     CORS_ORIGINS: list[str] = [

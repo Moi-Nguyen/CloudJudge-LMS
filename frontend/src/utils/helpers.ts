@@ -23,6 +23,18 @@ export function formatDateTime(date: string | Date): string {
   }).format(new Date(date))
 }
 
+export function formatVietnamDateTime(date: string | Date): string {
+  return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(date)).replace(',', '')
+}
+
 export function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60

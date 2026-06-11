@@ -42,6 +42,14 @@ class ProblemDetailResponse(ProblemResponse):
     test_case_count: int = 0
 
 
+class ProblemListResponse(BaseModel):
+    problems: list[ProblemResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 # Test Case schemas
 class TestCaseBase(BaseModel):
     input: str

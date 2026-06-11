@@ -113,7 +113,7 @@ export default function ProgrammingPage() {
         <div className="card p-6">
           <h3 className="text-lg font-semibold mb-4">Ví dụ</h3>
           <div className="space-y-4">
-            {sampleTestCases.map((tc: any, index: number) => (
+            {sampleTestCases.map((tc: any) => (
               <div key={tc.id} className="bg-gray-50 rounded-lg p-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -200,3 +200,4 @@ export default function ProgrammingPage() {
     </div>
   )
 }
+

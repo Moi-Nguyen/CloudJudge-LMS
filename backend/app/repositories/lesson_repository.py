@@ -18,12 +18,16 @@ class LessonRepository(BaseRepository[Lesson]):
         self,
         course_id: UUID,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        published_only: bool = False,
     ) -> list[Lesson]:
         """Get all lessons for a course."""
+        query = select(Lesson).where(Lesson.course_id == str(course_id))
+        if published_only:
+            query = query.where(Lesson.is_published == True)
+
         result = await self.db.execute(
-            select(Lesson)
-            .where(Lesson.course_id == course_id)
+            query
             .options(
                 selectinload(Lesson.quiz),
                 selectinload(Lesson.problem),
@@ -39,7 +43,7 @@ class LessonRepository(BaseRepository[Lesson]):
         """Get lesson with all details loaded."""
         result = await self.db.execute(
             select(Lesson)
-            .where(Lesson.id == lesson_id)
+            .where(Lesson.id == str(lesson_id))
             .options(
                 selectinload(Lesson.quiz).selectinload("questions"),
                 selectinload(Lesson.problem),
@@ -61,7 +65,7 @@ class LessonRepository(BaseRepository[Lesson]):
             select(Lesson)
             .where(
                 and_(
-                    Lesson.course_id == course_id,
+                    Lesson.course_id == str(course_id),
                     Lesson.lesson_type == lesson_type,
                 )
             )
@@ -71,13 +75,13 @@ class LessonRepository(BaseRepository[Lesson]):
         )
         return list(result.scalars().all())
 
-    async def count_by_course(self, course_id: UUID) -> int:
+    async def count_by_course(self, course_id: UUID, published_only: bool = False) -> int:
         """Count lessons for a course."""
-        result = await self.db.execute(
-            select(func.count())
-            .select_from(Lesson)
-            .where(Lesson.course_id == course_id)
-        )
+        query = select(func.count()).select_from(Lesson).where(Lesson.course_id == str(course_id))
+        if published_only:
+            query = query.where(Lesson.is_published == True)
+
+        result = await self.db.execute(query)
         return result.scalar_one()
 
     async def get_next_order(self, course_id: UUID) -> int:
@@ -85,7 +89,7 @@ class LessonRepository(BaseRepository[Lesson]):
         result = await self.db.execute(
             select(func.max(Lesson.order))
             .select_from(Lesson)
-            .where(Lesson.course_id == course_id)
+            .where(Lesson.course_id == str(course_id))
         )
         max_order = result.scalar_one()
         return (max_order or 0) + 1
@@ -106,7 +110,7 @@ class DocumentRepository(BaseRepository[Document]):
         """Get all documents for a lesson."""
         result = await self.db.execute(
             select(Document)
-            .where(Document.lesson_id == lesson_id)
+            .where(Document.lesson_id == str(lesson_id))
             .order_by(Document.created_at)
             .offset(skip)
             .limit(limit)

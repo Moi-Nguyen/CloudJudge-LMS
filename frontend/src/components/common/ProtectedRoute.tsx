@@ -49,9 +49,7 @@ export default function ProtectedRoute({
   // If authenticated via mock mode, allow access
   if (isAuthenticated && isMockAuth) {
     if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-      // Redirect to appropriate dashboard based on role
-      const dashboardPath = getDashboardPathByRole(user.role)
-      return <Navigate to={dashboardPath} replace />
+      return <AccessDenied />
     }
     return <>{children ?? <Outlet />}</>
   }
@@ -61,21 +59,20 @@ export default function ProtectedRoute({
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />
+    return <AccessDenied />
   }
 
   return <>{children ?? <Outlet />}</>
 }
 
-function getDashboardPathByRole(role: UserRole): string {
-  switch (role) {
-    case 'admin':
-      return '/admin'
-    case 'instructor':
-      return '/instructor'
-    case 'student':
-      return '/student'
-    default:
-      return '/dashboard'
-  }
+
+function AccessDenied() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center p-6">
+      <div className="max-w-md rounded-xl border border-red-100 bg-red-50 p-6 text-center text-red-700">
+        <h1 className="text-xl font-semibold">Access denied</h1>
+        <p className="mt-2 text-sm">You do not have permission to view this page.</p>
+      </div>
+    </div>
+  )
 }

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models import ProgrammingProblem, TestCase, Submission, TestResult, SubmissionStatus
+from ..models.lesson import Lesson
 from .base_repository import BaseRepository
 
 
@@ -19,7 +20,7 @@ class ProblemRepository(BaseRepository[ProgrammingProblem]):
         """Get problem with all test cases loaded."""
         result = await self.db.execute(
             select(ProgrammingProblem)
-            .where(ProgrammingProblem.id == problem_id)
+            .where(ProgrammingProblem.id == str(problem_id))
             .options(selectinload(ProgrammingProblem.test_cases))
         )
         return result.scalar_one_or_none()
@@ -27,9 +28,36 @@ class ProblemRepository(BaseRepository[ProgrammingProblem]):
     async def get_by_lesson(self, lesson_id: UUID) -> Optional[ProgrammingProblem]:
         """Get problem by lesson ID."""
         result = await self.db.execute(
-            select(ProgrammingProblem).where(ProgrammingProblem.lesson_id == lesson_id)
+            select(ProgrammingProblem).where(ProgrammingProblem.lesson_id == str(lesson_id))
         )
         return result.scalar_one_or_none()
+
+    async def get_by_course(
+        self,
+        course_id: UUID,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> list[ProgrammingProblem]:
+        """Get all programming problems for lessons in a course."""
+        result = await self.db.execute(
+            select(ProgrammingProblem)
+            .join(Lesson, ProgrammingProblem.lesson_id == Lesson.id)
+            .where(Lesson.course_id == str(course_id))
+            .order_by(Lesson.order, ProgrammingProblem.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_by_course(self, course_id: UUID) -> int:
+        """Count programming problems for lessons in a course."""
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(ProgrammingProblem)
+            .join(Lesson, ProgrammingProblem.lesson_id == Lesson.id)
+            .where(Lesson.course_id == str(course_id))
+        )
+        return result.scalar_one()
 
     async def get_by_difficulty(
         self,
@@ -62,7 +90,7 @@ class TestCaseRepository(BaseRepository[TestCase]):
         limit: int = 100
     ) -> list[TestCase]:
         """Get all test cases for a problem."""
-        query = select(TestCase).where(TestCase.problem_id == problem_id)
+        query = select(TestCase).where(TestCase.problem_id == str(problem_id))
 
         if not include_hidden:
             query = query.where(TestCase.is_hidden == False)
@@ -80,7 +108,7 @@ class TestCaseRepository(BaseRepository[TestCase]):
             select(TestCase)
             .where(
                 and_(
-                    TestCase.problem_id == problem_id,
+                    TestCase.problem_id == str(problem_id),
                     TestCase.is_sample == True,
                 )
             )
@@ -99,7 +127,7 @@ class SubmissionRepository(BaseRepository[Submission]):
         """Get submission with all test results."""
         result = await self.db.execute(
             select(Submission)
-            .where(Submission.id == submission_id)
+            .where(Submission.id == str(submission_id))
             .options(selectinload(Submission.results).selectinload("test_case"))
         )
         return result.scalar_one_or_none()
@@ -113,10 +141,10 @@ class SubmissionRepository(BaseRepository[Submission]):
         limit: int = 20
     ) -> list[Submission]:
         """Get submissions by user with filters."""
-        query = select(Submission).where(Submission.user_id == user_id)
+        query = select(Submission).where(Submission.user_id == str(user_id))
 
         if problem_id:
-            query = query.where(Submission.problem_id == problem_id)
+            query = query.where(Submission.problem_id == str(problem_id))
         if status:
             query = query.where(Submission.status == status)
 
@@ -138,7 +166,7 @@ class SubmissionRepository(BaseRepository[Submission]):
         """Get all submissions for a problem."""
         result = await self.db.execute(
             select(Submission)
-            .where(Submission.problem_id == problem_id)
+            .where(Submission.problem_id == str(problem_id))
             .options(selectinload(Submission.user))
             .order_by(Submission.submitted_at.desc())
             .offset(skip)
@@ -160,7 +188,7 @@ class SubmissionRepository(BaseRepository[Submission]):
         result = await self.db.execute(
             select(func.count())
             .select_from(Submission)
-            .where(Submission.problem_id == problem_id)
+            .where(Submission.problem_id == str(problem_id))
         )
         return result.scalar_one()
 
@@ -191,7 +219,7 @@ class TestResultRepository(BaseRepository[TestResult]):
         """Get all test results for a submission."""
         result = await self.db.execute(
             select(TestResult)
-            .where(TestResult.submission_id == submission_id)
+            .where(TestResult.submission_id == str(submission_id))
             .options(selectinload(TestResult.test_case))
             .order_by(TestResult.test_case.order)
         )

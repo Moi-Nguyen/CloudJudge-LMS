@@ -1,4 +1,5 @@
-export { default as CreateCoursePage } from './CreateCoursePage'
+﻿export { default as CreateCoursePage } from './CreateCoursePage'
+export { default as CreatedCoursesPage } from './CreatedCoursesPage'
 export { default as EditCoursePage } from './EditCoursePage'
 export { default as CreateLessonPage } from './CreateLessonPage'
 export { default as CreateQuizPage } from './CreateQuizPage'

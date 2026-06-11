@@ -24,6 +24,7 @@ import ProgrammingPage from './pages/student/ProgrammingPage'
 
 // Instructor Pages
 import CreateCoursePage from './pages/instructor/CreateCoursePage'
+import CreatedCoursesPage from './pages/instructor/CreatedCoursesPage'
 import EditCoursePage from './pages/instructor/EditCoursePage'
 import CreateLessonPage from './pages/instructor/CreateLessonPage'
 import CreateQuizPage from './pages/instructor/CreateQuizPage'
@@ -129,17 +130,21 @@ function App() {
             <Route path="problem/:problemId" element={<ProgrammingPage />} />
 
             {/* Instructor Routes */}
-            <Route path="instructor" element={<Navigate to="/instructor/create-course" replace />} />
+            <Route path="instructor" element={<Navigate to="/instructor/courses" replace />} />
+            <Route path="instructor/courses" element={<CreatedCoursesPage />} />
             <Route path="instructor/create-course" element={<CreateCoursePage />} />
             <Route path="instructor/edit-course/:courseId" element={<EditCoursePage />} />
             <Route path="instructor/lesson/:courseId/new" element={<CreateLessonPage />} />
+            <Route path="instructor/course/:courseId/quiz/new" element={<CreateQuizPage />} />
             <Route path="instructor/quiz/:lessonId/new" element={<CreateQuizPage />} />
             <Route path="instructor/problem/:lessonId/new" element={<CreateProblemPage />} />
 
             {/* Admin Routes */}
-            <Route path="admin" element={<AdminDashboardPage />} />
-            <Route path="admin/users" element={<AdminUsersPage />} />
-            <Route path="admin/courses" element={<AdminCoursesPage />} />
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+              <Route path="admin" element={<AdminDashboardPage />} />
+              <Route path="admin/users" element={<AdminUsersPage />} />
+              <Route path="admin/courses" element={<AdminCoursesPage />} />
+            </Route>
           </Route>
         </Route>
 

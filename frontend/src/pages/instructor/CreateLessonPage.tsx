@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Video, FileText, Code, HelpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { lessonsApi } from '@/api/endpoints'
+import { getApiErrorMessage, lessonsApi } from '@/api/endpoints'
 import { cn } from '@/utils'
 
 const lessonTypes = [
@@ -18,7 +18,7 @@ const lessonTypes = [
 const createLessonSchema = z.object({
   title: z.string().min(3, 'Tiêu đề phải có ít nhất 3 ký tự'),
   description: z.string().optional(),
-  content: z.string().optional(),
+  content: z.string().trim().min(1, 'Lesson content is required'),
   lesson_type: z.enum(['video', 'document', 'quiz', 'programming']),
   duration_minutes: z.number().optional(),
 })
@@ -45,7 +45,10 @@ export default function CreateLessonPage() {
   const selectedType = watch('lesson_type')
 
   const onSubmit = async (data: CreateLessonForm) => {
-    if (!courseId) return
+    if (!courseId) {
+      toast.error('Could not find the course for this lesson.')
+      return
+    }
 
     setLoading(true)
     try {
@@ -53,7 +56,7 @@ export default function CreateLessonPage() {
         course_id: courseId,
         title: data.title,
         description: data.description,
-        content: data.content,
+        content: data.content || '',
         lesson_type: data.lesson_type,
         duration_minutes: data.duration_minutes,
       })
@@ -70,7 +73,20 @@ export default function CreateLessonPage() {
       }
     } catch (error) {
       console.error('Failed to create lesson:', error)
-      toast.error('Tạo bài học thất bại')
+
+      if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as { response?: { status?: number; data?: { detail?: unknown } } }).response
+        if (response?.status === 403) {
+          toast.error('You do not have permission to create lessons for this course.')
+        } else if (response?.status === 422) {
+          console.error('Create lesson validation detail:', response.data?.detail)
+          toast.error('Lesson data is invalid. Please check title, content, and lesson type.')
+        } else {
+          toast.error(getApiErrorMessage(error))
+        }
+      } else {
+        toast.error('Could not create lesson')
+      }
     } finally {
       setLoading(false)
     }
@@ -159,6 +175,9 @@ export default function CreateLessonPage() {
               placeholder="Nội dung bài học"
               className="input"
             />
+            {errors.content && (
+              <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>
+            )}
           </div>
 
           {/* Duration */}

@@ -83,6 +83,9 @@ class QuizQuestionBrief(BaseModel):
     points: int
     order: int
 
+    class Config:
+        from_attributes = True
+
 
 class QuizForStudentResponse(BaseModel):
     """Quiz without correct answers for students."""

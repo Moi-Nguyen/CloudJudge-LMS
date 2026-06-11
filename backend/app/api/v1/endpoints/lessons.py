@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.dependencies import get_current_user, get_current_instructor
-from ....models import User
+from ....models import User, UserRole
 from ....schemas.lesson import (
     LessonCreate,
     LessonUpdate,
@@ -40,13 +40,20 @@ async def get_course_lessons(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all lessons for a course."""
     lesson_service = LessonService(db)
+    course = await lesson_service.course_repo.get_by_id(course_id)
+    can_manage = (
+        current_user.role == UserRole.ADMIN
+        or (course is not None and str(course.instructor_id) == str(current_user.id))
+    )
     lessons, total = await lesson_service.get_by_course(
         course_id,
         page=page,
         page_size=page_size,
+        published_only=not can_manage,
     )
     return _paginated_response(
         [LessonResponse.model_validate(l) for l in lessons],
@@ -65,7 +72,7 @@ async def create_lesson(
     """Create a new lesson (instructor/admin only)."""
     lesson_service = LessonService(db)
     try:
-        lesson = await lesson_service.create(current_user.id, data)
+        lesson = await lesson_service.create(current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return LessonResponse.model_validate(lesson)
     except CourseNotFoundError as e:
         raise HTTPException(
@@ -106,7 +113,7 @@ async def update_lesson(
     """Update a lesson (owner only)."""
     lesson_service = LessonService(db)
     try:
-        lesson = await lesson_service.update(lesson_id, current_user.id, data)
+        lesson = await lesson_service.update(lesson_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return LessonResponse.model_validate(lesson)
     except LessonNotFoundError as e:
         raise HTTPException(
@@ -129,7 +136,7 @@ async def delete_lesson(
     """Delete a lesson (owner only)."""
     lesson_service = LessonService(db)
     try:
-        await lesson_service.delete(lesson_id, current_user.id)
+        await lesson_service.delete(lesson_id, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
         return MessageResponse(message="Lesson deleted successfully")
     except LessonNotFoundError as e:
         raise HTTPException(
@@ -153,7 +160,7 @@ async def reorder_lesson(
     """Reorder a lesson."""
     lesson_service = LessonService(db)
     try:
-        lesson = await lesson_service.reorder(lesson_id, new_order, current_user.id)
+        lesson = await lesson_service.reorder(lesson_id, new_order, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
         return LessonResponse.model_validate(lesson)
     except LessonNotFoundError as e:
         raise HTTPException(
