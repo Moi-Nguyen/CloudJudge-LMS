@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useLocation, useParams, useNavigate } from 'react-router-dom'
 import { BookOpen, Trash2, Plus, Eye, EyeOff, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { coursesApi, lessonsApi } from '@/api/endpoints'
-import type { Course, Lesson } from '@/types'
+import { coursesApi, lessonsApi, quizzesApi } from '@/api/endpoints'
+import type { Course, Lesson, QuizQuestion } from '@/types'
 import { cn } from '@/utils'
 import { LoadingSpinner } from '@/components/common'
 
@@ -20,6 +20,38 @@ type LessonForm = {
 }
 
 const lessonTypes: Lesson['lesson_type'][] = ['video', 'document', 'quiz', 'programming']
+
+const vi = {
+  deleteCourseConfirm: '\u0042\u1ea1\u006e \u0063\u00f3 \u0063\u0068\u1eaf\u0063 \u006d\u0075\u1ed1\u006e \u0078\u00f3\u0061 \u006b\u0068\u00f3\u0061 \u0068\u1ecd\u0063 \u006e\u00e0\u0079? \u0048\u00e0\u006e\u0068 \u0111\u1ed9\u006e\u0067 \u006e\u00e0\u0079 \u006b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0068\u006f\u00e0\u006e \u0074\u00e1\u0063.',
+  savedQuiz: '\u0110\u00e3 \u006c\u01b0\u0075 \u0071\u0075\u0069\u007a',
+  question: '\u0043\u00e2\u0075 \u0068\u1ecf\u0069',
+  points: '\u0110\u0069\u1ec3\u006d',
+  answer: '\u0110\u00e1\u0070 \u00e1\u006e',
+  correctAnswer: '\u0110\u00e1\u0070 \u00e1\u006e \u0111\u00fa\u006e\u0067',
+  addQuestion: '\u0054\u0068\u00ea\u006d \u0063\u00e2\u0075 \u0068\u1ecf\u0069',
+  saveQuiz: '\u004c\u01b0\u0075 \u0071\u0075\u0069\u007a',
+  editQuiz: '\u0053\u1eeda \u0071\u0075\u0069\u007a',
+}
+
+type QuizEditForm = {
+  id: string
+  title: string
+  description: string
+  time_limit: string
+  passing_score: string
+  max_attempts: string
+  questions: QuizQuestion[]
+}
+
+const emptyQuizForm: QuizEditForm = {
+  id: '',
+  title: '',
+  description: '',
+  time_limit: '',
+  passing_score: '60',
+  max_attempts: '1',
+  questions: [],
+}
 
 export default function EditCoursePage() {
   const { courseId } = useParams<{ courseId: string }>()
@@ -45,6 +77,9 @@ export default function EditCoursePage() {
     storage_provider: 'local',
   }
   const [lessonForm, setLessonForm] = useState<LessonForm>(emptyLessonForm)
+  const [editingQuizLessonId, setEditingQuizLessonId] = useState<string | null>(null)
+  const [quizForm, setQuizForm] = useState<QuizEditForm>(emptyQuizForm)
+  const [quizSaving, setQuizSaving] = useState(false)
 
   const loadLessons = async () => {
     if (!courseId) return
@@ -108,7 +143,7 @@ export default function EditCoursePage() {
 
   const handleDelete = async () => {
     if (!courseId) return
-    if (!confirm('Delete this course?')) return
+    if (!confirm(vi.deleteCourseConfirm)) return
 
     try {
       await coursesApi.deleteCourse(courseId)
@@ -120,7 +155,31 @@ export default function EditCoursePage() {
     }
   }
 
-  const startEditLesson = (lesson: Lesson) => {
+  const startEditLesson = async (lesson: Lesson) => {
+    if (lesson.lesson_type === 'quiz') {
+      setEditingLessonId(null)
+      setEditingQuizLessonId(lesson.id)
+      try {
+        const quiz = await quizzesApi.getQuizByLesson(lesson.id)
+        const detail = await quizzesApi.getQuiz(quiz.id)
+        setQuizForm({
+          id: detail.id,
+          title: detail.title,
+          description: detail.description || '',
+          time_limit: detail.time_limit?.toString() || '',
+          passing_score: detail.passing_score.toString(),
+          max_attempts: detail.max_attempts.toString(),
+          questions: detail.questions || [],
+        })
+      } catch (error) {
+        console.error('Failed to load quiz:', error)
+        toast.error('Could not load quiz')
+        setEditingQuizLessonId(null)
+      }
+      return
+    }
+
+    setEditingQuizLessonId(null)
     setEditingLessonId(lesson.id)
     setLessonForm({
       title: lesson.title,
@@ -138,6 +197,81 @@ export default function EditCoursePage() {
   const cancelEditLesson = () => {
     setEditingLessonId(null)
     setLessonForm(emptyLessonForm)
+  }
+
+  const cancelEditQuiz = () => {
+    setEditingQuizLessonId(null)
+    setQuizForm(emptyQuizForm)
+  }
+
+  const updateQuizQuestion = (index: number, updates: Partial<QuizQuestion>) => {
+    setQuizForm((current) => ({
+      ...current,
+      questions: current.questions.map((question, questionIndex) => questionIndex === index ? { ...question, ...updates } : question),
+    }))
+  }
+
+  const updateQuizOption = (questionIndex: number, optionIndex: number, value: string) => {
+    setQuizForm((current) => ({
+      ...current,
+      questions: current.questions.map((question, currentQuestionIndex) => {
+        if (currentQuestionIndex !== questionIndex) return question
+        const options = [...(question.options || [])]
+        options[optionIndex] = { ...options[optionIndex], value }
+        return { ...question, options }
+      }),
+    }))
+  }
+
+  const addQuizQuestion = () => {
+    const order = quizForm.questions.length
+    setQuizForm((current) => ({
+      ...current,
+      questions: [...current.questions, {
+        id: `new-${Date.now()}`,
+        quiz_id: current.id,
+        question: '',
+        question_type: 'multiple_choice',
+        options: [{ key: 'A', value: '' }, { key: 'B', value: '' }, { key: 'C', value: '' }, { key: 'D', value: '' }],
+        correct_answer: 'A',
+        points: 1,
+        order,
+      }],
+    }))
+  }
+
+  const handleSaveQuiz = async () => {
+    if (!quizForm.id) return
+    setQuizSaving(true)
+    try {
+      await quizzesApi.updateQuiz(quizForm.id, {
+        title: quizForm.title,
+        description: quizForm.description,
+        time_limit: quizForm.time_limit ? Number(quizForm.time_limit) : undefined,
+        passing_score: Number(quizForm.passing_score),
+        max_attempts: Number(quizForm.max_attempts),
+      })
+      for (const question of quizForm.questions) {
+        const data = {
+          question: question.question,
+          question_type: question.question_type,
+          options: question.options,
+          correct_answer: question.correct_answer,
+          explanation: question.explanation,
+          points: question.points,
+          order: question.order,
+        }
+        if (question.id.startsWith('new-')) await quizzesApi.addQuestion(quizForm.id, data)
+        else await quizzesApi.updateQuestion(question.id, data)
+      }
+      toast.success(vi.savedQuiz)
+      cancelEditQuiz()
+    } catch (error) {
+      console.error('Failed to save quiz:', error)
+      toast.error('Could not save quiz')
+    } finally {
+      setQuizSaving(false)
+    }
   }
 
   const handleSaveLesson = async (lessonId: string) => {
@@ -304,7 +438,69 @@ export default function EditCoursePage() {
                 key={lesson.id}
                 className="p-4 bg-gray-50 rounded-lg"
               >
-                {editingLessonId === lesson.id ? (
+                {editingQuizLessonId === lesson.id ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Tên quiz
+                        <input type="text" value={quizForm.title} onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} className="input mt-1" placeholder="Nhập tên quiz" />
+                      </label>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Thời gian làm bài (phút)
+                        <input type="number" min={1} value={quizForm.time_limit} onChange={(e) => setQuizForm({ ...quizForm, time_limit: e.target.value })} className="input mt-1" placeholder="Thời gian làm bài" />
+                        <span className="mt-1 block text-xs font-normal text-gray-500">Thời gian tính bằng phút</span>
+                      </label>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Điểm đạt (%)
+                        <input type="number" min={0} max={100} value={quizForm.passing_score} onChange={(e) => setQuizForm({ ...quizForm, passing_score: e.target.value })} className="input mt-1" placeholder="Điểm đạt" />
+                        <span className="mt-1 block text-xs font-normal text-gray-500">Điểm đạt từ 0 đến 100</span>
+                      </label>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Số lần làm tối đa
+                        <input type="number" min={1} value={quizForm.max_attempts} onChange={(e) => setQuizForm({ ...quizForm, max_attempts: e.target.value })} className="input mt-1" placeholder="Số lần làm tối đa" />
+                        <span className="mt-1 block text-xs font-normal text-gray-500">Số lần làm tối đa phải lớn hơn hoặc bằng 1</span>
+                      </label>
+                    </div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Mô tả quiz
+                      <textarea value={quizForm.description} onChange={(e) => setQuizForm({ ...quizForm, description: e.target.value })} rows={2} className="input mt-1" placeholder="Nhập mô tả quiz" />
+                    </label>
+                    <div className="space-y-3">
+                      {quizForm.questions.map((question, questionIndex) => (
+                        <div key={question.id} className="rounded-lg border border-gray-200 bg-white p-3">
+                          <div className="grid gap-3 md:grid-cols-[1fr_120px]">
+                            <label className="block text-sm font-medium text-gray-700">
+                              Câu hỏi
+                              <input type="text" value={question.question} onChange={(e) => updateQuizQuestion(questionIndex, { question: e.target.value })} className="input mt-1" placeholder="Nhập nội dung câu hỏi" />
+                            </label>
+                            <label className="block text-sm font-medium text-gray-700">
+                              Điểm câu hỏi
+                              <input type="number" min={1} value={question.points} onChange={(e) => updateQuizQuestion(questionIndex, { points: Number(e.target.value) })} className="input mt-1" placeholder={vi.points} />
+                            </label>
+                          </div>
+                          <p className="mt-3 text-sm font-medium text-gray-700">Đáp án đúng</p>
+                          <div className="mt-2 grid gap-2 md:grid-cols-2">
+                            {(question.options || []).map((option, optionIndex) => (
+                              <label key={option.key} className="block text-sm font-medium text-gray-700">
+                                Đáp án {option.key}
+                                <div className="mt-1 flex items-center gap-2">
+                                  <input type="radio" name={`correct-${question.id}`} checked={question.correct_answer === option.key} onChange={() => updateQuizQuestion(questionIndex, { correct_answer: option.key })} aria-label={`Đáp án đúng ${option.key}`} />
+                                  <input type="text" value={option.value} onChange={(e) => updateQuizOption(questionIndex, optionIndex, e.target.value)} className="input" placeholder={`Nhập đáp án ${option.key}`} />
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                          <p className="mt-2 text-xs text-gray-500">Đáp án đúng hiện tại: {question.correct_answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={addQuizQuestion} className="btn-outline text-sm">{vi.addQuestion}</button>
+                      <button onClick={handleSaveQuiz} disabled={quizSaving} className="btn-primary text-sm">{quizSaving ? 'Saving...' : vi.saveQuiz}</button>
+                      <button onClick={cancelEditQuiz} className="btn-outline text-sm">Cancel</button>
+                    </div>
+                  </div>
+                ) : editingLessonId === lesson.id ? (
                   <div className="space-y-3">
                     <div className="grid gap-3 md:grid-cols-2">
                       <input
@@ -415,7 +611,7 @@ export default function EditCoursePage() {
                       onClick={() => startEditLesson(lesson)}
                       className="btn-outline text-sm"
                     >
-                      <Pencil size={14} className="mr-1 inline" /> Edit
+                      <Pencil size={14} className="mr-1 inline" /> {lesson.lesson_type === 'quiz' ? vi.editQuiz : 'Edit'}
                     </button>
                     <button
                       onClick={() => handleDeleteLesson(lesson)}

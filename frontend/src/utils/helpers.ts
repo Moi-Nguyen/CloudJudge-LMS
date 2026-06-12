@@ -7,24 +7,41 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatDate(date: string | Date): string {
   return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(date))
+  }).format(parseBackendDate(date))
 }
 
 export function formatDateTime(date: string | Date): string {
   return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date))
+  }).format(parseBackendDate(date))
 }
 
-export function formatVietnamDateTime(date: string | Date): string {
-  return new Intl.DateTimeFormat('vi-VN', {
+function parseBackendDate(value: string | Date): Date {
+  const rawValue =
+    typeof value === 'string' && !/[zZ]|[+-]\d{2}:\d{2}$/.test(value)
+      ? `${value}Z`
+      : value
+
+  return new Date(rawValue)
+}
+
+export function formatVietnamDateTime(value?: string | Date | null): string {
+  if (!value) return ''
+
+  const date = parseBackendDate(value)
+
+  if (Number.isNaN(date.getTime())) return ''
+
+  const parts = new Intl.DateTimeFormat('vi-VN', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
     month: '2-digit',
@@ -32,7 +49,11 @@ export function formatVietnamDateTime(date: string | Date): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(new Date(date)).replace(',', '')
+  }).formatToParts(date)
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
+
+  return `${getPart('day')}/${getPart('month')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')}`
 }
 
 export function formatTime(seconds: number): string {

@@ -3,6 +3,7 @@ from .course import Course, Enrollment
 from .lesson import Lesson, Document, LessonType
 from .quiz import Quiz, QuizQuestion, QuizAttempt, QuizAnswer
 from .problem import ProgrammingProblem, TestCase, Submission, TestResult, SubmissionStatus
+from .notification import Notification
 
 __all__ = [
     "User",
@@ -21,4 +22,5 @@ __all__ = [
     "Submission",
     "TestResult",
     "SubmissionStatus",
+    "Notification",
 ]

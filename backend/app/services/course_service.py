@@ -1,10 +1,11 @@
 from typing import Optional
 from uuid import UUID
+import json
 import math
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Course, Enrollment
+from ..models import Course, Enrollment, Notification
 from ..schemas.course import CourseCreate, CourseUpdate
 from ..repositories import CourseRepository, EnrollmentRepository, UserRepository
 from ..errors import (
@@ -105,12 +106,26 @@ class CourseService:
         if not course:
             raise CourseNotFoundError()
 
-        if str(course.instructor_id) != str(user_id):
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
-        # Soft delete
-        course.is_deleted = True
-        await self.course_repo.update(course)
+        active_enrollments = [
+            enrollment for enrollment in (course.enrollments or [])
+            if enrollment.status == "active"
+        ]
+        for enrollment in active_enrollments:
+            self.db.add(Notification(
+                user_id=str(enrollment.user_id),
+                title="Khóa học đã bị xóa",
+                message=f'Khóa học "{course.title}" đã bị xóa bởi giảng viên/quản trị viên.',
+                notification_type="course_deleted",
+                metadata_json=json.dumps(
+                    {"course_id": str(course.id), "course_title": course.title},
+                    ensure_ascii=False,
+                ),
+            ))
+
+        await self.course_repo.delete(course)
 
     async def enroll(self, user_id: UUID, course_id: UUID) -> Enrollment:
         """Enroll user in course."""
@@ -120,8 +135,10 @@ class CourseService:
             raise AlreadyEnrolledError()
 
         course = await self.course_repo.get_by_id(course_id)
-        if not course:
+        if not course or course.is_deleted:
             raise CourseNotFoundError()
+        if not course.is_published:
+            raise NotEnrolledError("Course is not available for enrollment")
 
         enrollment = Enrollment(
             user_id=str(user_id),

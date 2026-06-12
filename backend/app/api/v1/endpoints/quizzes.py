@@ -83,7 +83,7 @@ async def get_quiz(
     """Get quiz with questions (instructor/admin only sees correct answers)."""
     quiz_service = QuizService(db)
     try:
-        quiz = await quiz_service.get_by_id(quiz_id)
+        quiz = await quiz_service.get_for_editor(quiz_id, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
         return QuizDetailResponse.model_validate(quiz)
     except QuizNotFoundError as e:
         raise HTTPException(
@@ -126,7 +126,7 @@ async def update_quiz(
     """Update a quiz (owner only)."""
     quiz_service = QuizService(db)
     try:
-        quiz = await quiz_service.update(quiz_id, current_user.id, data)
+        quiz = await quiz_service.update(quiz_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return QuizResponse.model_validate(quiz)
     except QuizNotFoundError as e:
         raise HTTPException(
@@ -149,7 +149,7 @@ async def delete_quiz(
     """Delete a quiz (owner only)."""
     quiz_service = QuizService(db)
     try:
-        await quiz_service.delete(quiz_id, current_user.id)
+        await quiz_service.delete(quiz_id, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
     except QuizNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -173,7 +173,7 @@ async def add_question(
     """Add a question to a quiz."""
     quiz_service = QuizService(db)
     try:
-        question = await quiz_service.add_question(quiz_id, current_user.id, data)
+        question = await quiz_service.add_question(quiz_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return QuizQuestionResponse.model_validate(question)
     except QuizNotFoundError as e:
         raise HTTPException(
@@ -197,7 +197,7 @@ async def update_question(
     """Update a question."""
     quiz_service = QuizService(db)
     try:
-        question = await quiz_service.update_question(question_id, current_user.id, data)
+        question = await quiz_service.update_question(question_id, current_user.id, data, is_admin=current_user.role == UserRole.ADMIN)
         return QuizQuestionResponse.model_validate(question)
     except QuestionNotFoundError as e:
         raise HTTPException(
@@ -220,7 +220,7 @@ async def delete_question(
     """Delete a question."""
     quiz_service = QuizService(db)
     try:
-        await quiz_service.delete_question(question_id, current_user.id)
+        await quiz_service.delete_question(question_id, current_user.id, is_admin=current_user.role == UserRole.ADMIN)
     except QuestionNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -208,6 +208,7 @@ async def enroll_in_course(
         )
 
 
+@router.delete("/{course_id}/enroll", response_model=MessageResponse)
 @router.post("/{course_id}/unenroll", response_model=MessageResponse)
 async def unenroll_from_course(
     course_id: UUID,

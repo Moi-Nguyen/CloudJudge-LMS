@@ -4,7 +4,7 @@ import { CheckCircle, XCircle } from 'lucide-react'
 import type { AxiosError } from 'axios'
 import { quizzesApi } from '@/api/endpoints'
 import type { Quiz, QuizAttempt } from '@/types'
-import { cn } from '@/utils'
+import { cn, formatVietnamDateTime } from '@/utils'
 import { LoadingSpinner } from '@/components/common'
 
 export default function QuizPage() {
@@ -142,6 +142,9 @@ export default function QuizPage() {
       <div className="card p-6">
         <h1 className="text-2xl font-bold mb-2">{quiz.title}</h1>
         <p className="text-gray-600 mb-4">{quiz.description}</p>
+        {quiz.updated_at && (
+          <p className="mb-4 text-sm text-gray-500">{'\u0043\u1ead\u0070 \u006e\u0068\u1ead\u0074 \u006c\u1ea7\u006e \u0063\u0075\u1ed1\u0069'}: {formatVietnamDateTime(quiz.updated_at)}</p>
+        )}
 
         <div className="flex flex-wrap gap-4 text-sm text-gray-500">
           <span>{quiz.questions.length} câu hỏi</span>

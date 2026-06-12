@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,6 +87,16 @@ class QuizService:
             raise QuizNotFoundError()
         return quiz
 
+
+    async def get_for_editor(self, quiz_id: UUID, user_id: UUID, is_admin: bool = False) -> Quiz:
+        """Get quiz details for an instructor/admin editor."""
+        quiz = await self.get_by_id(quiz_id)
+        lesson = await self.lesson_repo.get_by_id(quiz.lesson_id)
+        course = await self.course_repo.get_by_id(lesson.course_id)
+        if not is_admin and str(course.instructor_id) != str(user_id):
+            raise NotCourseOwnerError()
+        return quiz
+
     async def get_for_student(self, quiz_id: UUID, student_id: UUID) -> Quiz:
         """Get quiz for student (without correct answers)."""
         quiz = await self.get_by_id(quiz_id)
@@ -107,6 +117,7 @@ class QuizService:
         quiz_id: UUID,
         user_id: UUID,
         data: QuizUpdate,
+        is_admin: bool = False,
     ) -> Quiz:
         """Update a quiz."""
         quiz = await self.quiz_repo.get_by_id(quiz_id)
@@ -115,16 +126,17 @@ class QuizService:
 
         lesson = await self.lesson_repo.get_by_id(quiz.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(quiz, field, value)
+        quiz.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         return await self.quiz_repo.update(quiz)
 
-    async def delete(self, quiz_id: UUID, user_id: UUID) -> None:
+    async def delete(self, quiz_id: UUID, user_id: UUID, is_admin: bool = False) -> None:
         """Delete a quiz."""
         quiz = await self.quiz_repo.get_by_id(quiz_id)
         if not quiz:
@@ -132,7 +144,7 @@ class QuizService:
 
         lesson = await self.lesson_repo.get_by_id(quiz.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         await self.quiz_repo.delete(quiz)
@@ -142,6 +154,7 @@ class QuizService:
         quiz_id: UUID,
         user_id: UUID,
         data: QuestionCreate,
+        is_admin: bool = False,
     ) -> QuizQuestion:
         """Add a question to a quiz."""
         quiz = await self.quiz_repo.get_by_id(quiz_id)
@@ -150,7 +163,7 @@ class QuizService:
 
         lesson = await self.lesson_repo.get_by_id(quiz.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         question = QuizQuestion(
@@ -170,6 +183,7 @@ class QuizService:
         question_id: UUID,
         user_id: UUID,
         data: QuestionUpdate,
+        is_admin: bool = False,
     ) -> QuizQuestion:
         """Update a question."""
         question = await self.question_repo.get_by_id(question_id)
@@ -179,16 +193,18 @@ class QuizService:
         quiz = await self.quiz_repo.get_by_id(question.quiz_id)
         lesson = await self.lesson_repo.get_by_id(quiz.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(question, field, value)
 
+        quiz.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await self.quiz_repo.update(quiz)
         return await self.question_repo.update(question)
 
-    async def delete_question(self, question_id: UUID, user_id: UUID) -> None:
+    async def delete_question(self, question_id: UUID, user_id: UUID, is_admin: bool = False) -> None:
         """Delete a question."""
         question = await self.question_repo.get_by_id(question_id)
         if not question:
@@ -197,9 +213,11 @@ class QuizService:
         quiz = await self.quiz_repo.get_by_id(question.quiz_id)
         lesson = await self.lesson_repo.get_by_id(quiz.lesson_id)
         course = await self.course_repo.get_by_id(lesson.course_id)
-        if course.instructor_id != user_id:
+        if not is_admin and str(course.instructor_id) != str(user_id):
             raise NotCourseOwnerError()
 
+        quiz.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await self.quiz_repo.update(quiz)
         await self.question_repo.delete(question)
 
     async def start_attempt(self, user_id: UUID, quiz_id: UUID) -> QuizAttempt:

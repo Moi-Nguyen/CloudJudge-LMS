@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,7 +50,7 @@ class LessonService:
             file_size=data.file_size,
             storage_provider=data.storage_provider,
             is_published=data.is_published,
-            published_at=datetime.utcnow() if data.is_published else None,
+            published_at=datetime.now(timezone.utc) if data.is_published else None,
         )
         return await self.lesson_repo.create(lesson)
 
@@ -96,7 +96,7 @@ class LessonService:
 
         update_data = data.model_dump(exclude_unset=True)
         if "is_published" in update_data:
-            lesson.published_at = datetime.utcnow() if update_data["is_published"] else None
+            lesson.published_at = datetime.now(timezone.utc) if update_data["is_published"] else None
 
         for field, value in update_data.items():
             setattr(lesson, field, value)

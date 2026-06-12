@@ -41,6 +41,18 @@ export interface TokenResponse {
   expires_in: number
 }
 
+
+export interface Notification {
+  id: string
+  user_id: string
+  title: string
+  message: string
+  notification_type: 'course_deleted' | string
+  is_read: boolean
+  created_at: string
+  metadata_json?: string | null
+}
+
 // Course types
 export interface Course {
   id: string

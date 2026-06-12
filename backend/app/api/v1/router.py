@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .endpoints import auth, users, courses, lessons, quizzes, problems, stats, dashboard
+from .endpoints import auth, users, courses, lessons, quizzes, problems, stats, dashboard, notifications
 
 
 api_router = APIRouter()
@@ -14,3 +14,4 @@ api_router.include_router(quizzes.router)
 api_router.include_router(problems.router)
 api_router.include_router(stats.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(notifications.router)

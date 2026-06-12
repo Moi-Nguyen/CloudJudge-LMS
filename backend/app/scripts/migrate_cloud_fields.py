@@ -16,6 +16,25 @@ if str(BACKEND_DIR) not in sys.path:
 load_dotenv(ROOT_DIR / ".env")
 load_dotenv(BACKEND_DIR / ".env")
 
+REQUIRED_TABLES = {
+    "notifications": """
+        CREATE TABLE `notifications` (
+            `id` VARCHAR(36) NOT NULL,
+            `user_id` VARCHAR(36) NOT NULL,
+            `title` VARCHAR(255) NOT NULL,
+            `message` TEXT NOT NULL,
+            `notification_type` VARCHAR(50) NOT NULL,
+            `is_read` BOOLEAN NOT NULL DEFAULT FALSE,
+            `created_at` DATETIME NOT NULL,
+            `metadata_json` TEXT NULL,
+            PRIMARY KEY (`id`),
+            INDEX `ix_notifications_user_id` (`user_id`),
+            INDEX `ix_notifications_notification_type` (`notification_type`),
+            CONSTRAINT `fk_notifications_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+        )
+    """,
+}
+
 REQUIRED_COLUMNS = {
     "lessons": {
         "file_url": "VARCHAR(500) NULL",
@@ -65,6 +84,14 @@ async def migrate_cloud_fields() -> dict[str, list[str]]:
 
     try:
         async with engine.begin() as connection:
+            for table_name, create_statement in REQUIRED_TABLES.items():
+                if await table_exists(connection, table_name):
+                    print(f"{table_name}: skipped table already exists")
+                    continue
+
+                await connection.execute(text(create_statement))
+                print(f"{table_name}: created")
+
             for table_name, required_columns in REQUIRED_COLUMNS.items():
                 if not await table_exists(connection, table_name):
                     print(f"{table_name}: skipped table missing")

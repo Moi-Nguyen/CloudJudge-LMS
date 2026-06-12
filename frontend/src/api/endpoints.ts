@@ -9,6 +9,7 @@ import type {
   CourseDetail,
   CourseCreate,
   CourseUpdate,
+  Notification,
   Enrollment,
   EnrollmentWithCourse,
   Lesson,
@@ -237,11 +238,23 @@ export const coursesApi = {
   },
 
   unenrollFromCourse: async (courseId: string): Promise<void> => {
-    await api.post(`/courses/${courseId}/unenroll`)
+    await api.delete(`/courses/${courseId}/enroll`)
   },
 
   getCourseProgress: async (courseId: string): Promise<Enrollment> => {
     const response = await api.get(`/courses/${courseId}/progress`)
+    return response.data
+  },
+}
+
+export const notificationsApi = {
+  getMyNotifications: async (params?: { unread_only?: boolean }): Promise<ListResponse<Notification>> => {
+    const response = await api.get('/notifications/me', { params })
+    return normalizeListResponse<Notification>(response.data, ['items'], '/notifications/me')
+  },
+
+  markAsRead: async (notificationId: string): Promise<Notification> => {
+    const response = await api.patch(`/notifications/${notificationId}/read`)
     return response.data
   },
 }
